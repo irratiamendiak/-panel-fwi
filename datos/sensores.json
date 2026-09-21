@@ -1,0 +1,112 @@
+{
+  "C023": {
+    "temperatura": {
+      "sensor": "R0CY",
+      "tipo": "measuresForAir",
+      "medida": "temperature"
+    },
+    "humedad": {
+      "sensor": "R0CY",
+      "tipo": "measuresForAir",
+      "medida": "humidity"
+    },
+    "viento": {
+      "sensor": "Y024",
+      "tipo": "measuresForWind",
+      "medida": "mean_speed"
+    },
+    "lluvia": {
+      "sensor": "G4AS",
+      "tipo": "measuresForWater",
+      "medida": "precipitation"
+    }
+  },
+  "C017": {
+    "temperatura": {
+      "sensor": "R0D0",
+      "tipo": "measuresForAir",
+      "medida": "temperature"
+    },
+    "humedad": {
+      "sensor": "R0D0",
+      "tipo": "measuresForAir",
+      "medida": "humidity"
+    },
+    "viento": {
+      "sensor": "Y008",
+      "tipo": "measuresForWind",
+      "medida": "mean_speed"
+    },
+    "lluvia": {
+      "sensor": "G4DB",
+      "tipo": "measuresForWater",
+      "medida": "precipitation"
+    }
+  },
+  "C058": {
+    "temperatura": {
+      "sensor": "R0GB",
+      "tipo": "measuresForAir",
+      "medida": "temperature"
+    },
+    "humedad": {
+      "sensor": "R0GB",
+      "tipo": "measuresForAir",
+      "medida": "humidity"
+    },
+    "viento": {
+      "sensor": "Y0BE",
+      "tipo": "measuresForWind",
+      "medida": "mean_speed"
+    },
+    "lluvia": {
+      "sensor": "G460",
+      "tipo": "measuresForWater",
+      "medida": "precipitation"
+    }
+  },
+  "C026": {
+    "temperatura": {
+      "sensor": "R0IE",
+      "tipo": "measuresForAir",
+      "medida": "temperature"
+    },
+    "humedad": {
+      "sensor": "R0IE",
+      "tipo": "measuresForAir",
+      "medida": "humidity"
+    },
+    "viento": {
+      "sensor": "Y0DB",
+      "tipo": "measuresForWind",
+      "medida": "mean_speed"
+    },
+    "lluvia": {
+      "sensor": "G4B3",
+      "tipo": "measuresForWater",
+      "medida": "precipitation"
+    }
+  },
+  "C028": {
+    "temperatura": {
+      "sensor": "R0IC",
+      "tipo": "measuresForAir",
+      "medida": "temperature"
+    },
+    "humedad": {
+      "sensor": "R0IC",
+      "tipo": "measuresForAir",
+      "medida": "humidity"
+    },
+    "viento": {
+      "sensor": "Y0R8",
+      "tipo": "measuresForWind",
+      "medida": "mean_speed"
+    },
+    "lluvia": {
+      "sensor": "G4AF",
+      "tipo": "measuresForWater",
+      "medida": "precipitation"
+    }
+  }
+}
