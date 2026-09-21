@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel FWI · Riesgo de incendios en 5 estaciones</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f4;--card:#ffffff;--ink:#14231c;--muted:#56665e;--line:#d3dae0;--field:#f6f8f9;
+  --accent:#1f5f46;--accent-ink:#ffffff;--warn:#b3261e;--sel:#1f5f46;
+  --f-head:'Archivo',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-body:'Public Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1815;--card:#16221d;--ink:#e7f0ea;--muted:#9bb0a5;--line:#2a3b33;--field:#0f1a16;
+    --accent:#7cc9a0;--accent-ink:#0b1a13;--warn:#ff8a80;--sel:#7cc9a0;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--f-body)}
+main{max-width:920px;margin:0 auto;padding:24px 16px 64px}
+h1,h2,h3{font-family:var(--f-head);margin:0;line-height:1.15}
+h1{font-size:clamp(28px,7vw,40px);font-weight:800;letter-spacing:-0.02em}
+h2{font-size:19px;font-weight:700;margin-bottom:12px}
+.lede{color:var(--muted);margin:10px 0 4px;max-width:62ch}
+.upd{color:var(--muted);font-size:14px;margin:0 0 22px}
+section{margin-bottom:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.chip{display:inline-block;padding:3px 12px;border-radius:999px;font-weight:600;font-size:14px;background:var(--line);color:var(--ink);white-space:nowrap}
+
+.stations{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+.st{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-height:150px}
+.st:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.st[aria-pressed="true"]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
+.st-name{font-family:var(--f-head);font-weight:700;font-size:16px}
+.st-val{font-family:var(--f-head);font-weight:800;font-size:44px;line-height:1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
+.st .chip{align-self:flex-start;font-size:13px;padding:2px 10px}
+.st-date{color:var(--muted);font-size:12px}
+.st-date.viejo{color:var(--warn);font-weight:600}
+.st svg{margin-top:auto}
+
+.chart{overflow-x:auto;padding-bottom:4px}
+.chart svg{display:block}
+.empty{color:var(--muted);margin:0;font-size:14px}
+.msg{color:var(--warn)}
+
+.tabla{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px;font-variant-numeric:tabular-nums;font-size:14px}
+th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font-size:12px;color:var(--muted);font-weight:500}
+td.fwi span{display:inline-block;padding:1px 10px;border-radius:8px;font-weight:700;background:var(--line)}
+.nota{color:var(--muted);font-size:13px;margin:10px 0 0}
+button.ghost{font:600 15px var(--f-body);cursor:pointer;min-height:44px;border-radius:8px;background:transparent;color:var(--ink);border:1px solid var(--line);padding:0 16px;margin-top:12px}
+
+details{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+summary{cursor:pointer;font-weight:600;font-family:var(--f-head)}
+details ul{padding-left:20px;margin:12px 0 0}
+details li{margin-bottom:8px;color:var(--muted)}
+details li b{color:var(--ink);font-weight:600}
+.classes{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:12px 0 0;font-size:14px;align-items:center}
+.classes .chip{font-size:13px;padding:2px 10px;text-align:center}
+
+@media (min-width:560px){ .stations{grid-template-columns:repeat(3,1fr)} }
+@media (min-width:800px){ .stations{grid-template-columns:repeat(5,1fr)} .st-val{font-size:38px} }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Panel FWI de 5 estaciones</h1>
+    <p class="lede">Riesgo meteorológico de incendios (Fire Weather Index) en Zegama, Bidania, Miramon, Berastegi y Arrasate, calculado cada día con los datos de mediodía de Euskalmet.</p>
+    <p class="upd" id="upd">Cargando datos…</p>
+  </header>
+
+  <section aria-label="Resumen por estación">
+    <h2>Última lectura calculada</h2>
+    <div class="stations" id="stations"></div>
+  </section>
+
+  <section>
+    <h2 id="detTitle">Detalle</h2>
+    <div class="card">
+      <div class="chart" id="chart"></div>
+    </div>
+    <div class="card">
+      <div class="tabla" id="tabla"></div>
+      <p class="nota" id="nota"></p>
+      <button class="ghost" id="todo" type="button" hidden>Ver todo el histórico</button>
+    </div>
+  </section>
+
+  <details id="clim" hidden>
+    <summary id="climtit">FWI habitual por mes</summary>
+    <p class="nota" style="margin-top:12px">Valores del FWI de mediodía desde 2010, sin los datos erróneos y sin los días de calentamiento. La mediana es el día típico; P90 y P98 son los días muy y extremadamente altos para ese mes.</p>
+    <div class="tabla" id="climtabla"></div>
+  </details>
+
+  <details>
+    <summary>Cómo se calcula y qué tener en cuenta</summary>
+    <ul>
+      <li><b>Datos.</b> Cada día, tras las 12:00, se descargan de Euskalmet la temperatura, la humedad y la velocidad media del viento a las 12:00 y la lluvia acumulada de las 24 h anteriores.</li>
+      <li><b>Cascada.</b> FFMC (hojarasca fina), DMC (capa orgánica media) y DC (capas profundas) arrastran el valor del día anterior. Con ellos se obtienen ISI (propagación inicial) y BUI (combustible disponible), y de ambos sale el FWI.</li>
+      <li><b>Huecos.</b> Si una estación no midió un día, ese día no se calcula y el siguiente continúa desde el último valor disponible. Las filas con asterisco (*) vienen después de un hueco y son menos exactas. Si el hueco supera dos semanas, los códigos se reinician y los días siguientes se marcan con † hasta que se estabilizan.</li>
+      <li><b>Percentil.</b> Compara el FWI de hoy con el de todos los días del mismo mes desde 2010 en esa estación. En un clima húmedo como el vuestro es más informativo que la clase general, porque un mismo FWI puede ser habitual en agosto y excepcional en mayo.</li>
+      <li><b>Datos erróneos.</b> Se descartan las lecturas físicamente imposibles (por ejemplo, humedad del 0,3 % o 3.000 mm de lluvia en un día) antes de calcular.</li>
+      <li><b>Latitud.</b> Los factores de duración del día están calibrados para unos 46° N, cercanos a los de Euskadi.</li>
+      <li><b>Uso.</b> Herramienta orientativa: no sustituye a los avisos oficiales.</li>
+    </ul>
+    <p class="nota" style="margin-top:14px">Clases de peligro (criterio EFFIS):</p>
+    <div class="classes">
+      <span class="chip" style="background:#2f8f5b;color:#fff">Muy bajo</span><span>menos de 5,2</span>
+      <span class="chip" style="background:#8fbf3f;color:#14231c">Bajo</span><span>5,2 a 11,2</span>
+      <span class="chip" style="background:#f0c53b;color:#14231c">Moderado</span><span>11,2 a 21,3</span>
+      <span class="chip" style="background:#ee8a2e;color:#14231c">Alto</span><span>21,3 a 38</span>
+      <span class="chip" style="background:#d9382b;color:#fff">Muy alto</span><span>38 a 50</span>
+      <span class="chip" style="background:#7a1f4d;color:#fff">Extremo</span><span>más de 50</span>
+    </div>
+  </details>
+</main>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const COLORES = {
+    'Muy bajo': {c:'#2f8f5b', fg:'#ffffff'},
+    'Bajo':     {c:'#8fbf3f', fg:'#14231c'},
+    'Moderado': {c:'#f0c53b', fg:'#14231c'},
+    'Alto':     {c:'#ee8a2e', fg:'#14231c'},
+    'Muy alto': {c:'#d9382b', fg:'#ffffff'},
+    'Extremo':  {c:'#7a1f4d', fg:'#ffffff'}
+  };
+  const colorDe = n => COLORES[n] || {c:'#888', fg:'#fff'};
+  const fmt = (x,dec=1) => Number(x).toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const esISO = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const fecha = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+  const fmtFecha = s => fecha(s).toLocaleDateString('es-ES',{weekday:'short',day:'numeric',month:'short'});
+  const DIAS_POR_DEFECTO = 30;
+
+  let DATA = null, sel = 0, todo = false;
+
+  fetch('data/fwi.json',{cache:'no-store'})
+    .then(r => { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(d => { DATA = d; render(); })
+    .catch(() => {
+      $('#upd').innerHTML = '<span class="msg">No se han podido cargar los datos. Si has abierto el fichero directamente desde el disco, publícalo en una web (por ejemplo GitHub Pages) para que pueda leer data/fwi.json.</span>';
+    });
+
+  function ultimo(est){ return est.dias.length ? est.dias[est.dias.length-1] : null; }
+
+  function spark(dias){
+    const v = dias.slice(-10);
+    if (!v.length) return '';
+    const mx = Math.max(20,...v.map(r => r.fwi));
+    let s = '<svg width="100" height="30" viewBox="0 0 100 30" aria-hidden="true">';
+    v.forEach((r,i) => {
+      const h = Math.max(2,r.fwi/mx*28);
+      s += `<rect x="${i*10}" y="${30-h}" width="8" height="${h}" rx="1.5" fill="${colorDe(r.clase).c}"/>`;
+    });
+    return s+'</svg>';
+  }
+
+  function render(){
+    const dt = new Date(DATA.actualizado);
+    $('#upd').textContent = isNaN(dt) ? '' : 'Actualizado el '+dt.toLocaleString('es-ES',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'})+'. Datos de las '+String(DATA.hora_dato).padStart(2,'0')+':00.';
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+    $('#stations').innerHTML = DATA.estaciones.map((est,i) => {
+      const u = ultimo(est);
+      if (!u) return `<button class="st" type="button" data-st="${i}" aria-pressed="${i===sel}"><span class="st-name">${est.nombre}</span><span class="st-val">—</span><span class="chip">Sin datos</span></button>`;
+      const col = colorDe(u.clase);
+      const atras = esISO(u.fecha) ? Math.round((hoy - fecha(u.fecha))/864e5) : 0;
+      const viejo = atras > 2;
+      const extra = u.calentando ? '<span class="st-date">† calentando: poco fiable</span>'
+                  : (u.pct != null ? `<span class="st-date">Percentil ${u.pct} de su mes</span>` : '');
+      return `<button class="st" type="button" data-st="${i}" aria-pressed="${i===sel}">
+        <span class="st-name">${est.nombre}</span>
+        <span class="st-val">${fmt(u.fwi)}</span>
+        <span class="chip" style="background:${col.c};color:${col.fg}">${u.clase}</span>
+        <span class="st-date${viejo?' viejo':''}">${esISO(u.fecha)?fmtFecha(u.fecha):''}${viejo?' · sin datos recientes':''}</span>
+        ${extra}
+        ${spark(est.dias)}
+      </button>`;
+    }).join('');
+    detalle();
+  }
+
+  function detalle(){
+    const est = DATA.estaciones[sel];
+    $('#detTitle').textContent = 'Detalle: '+est.nombre+' ('+est.codigo+')';
+    const dias = todo ? est.dias : est.dias.slice(-DIAS_POR_DEFECTO);
+    grafico(dias);
+    tabla(dias, est);
+    climatologia(est);
+  }
+
+  function climatologia(est){
+    const c = (DATA.climatologia || {})[est.nombre];
+    const box = $('#clim');
+    if (!c){ box.hidden = true; return; }
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const u = ultimo(est);
+    const actual = u && esISO(u.fecha) ? +u.fecha.slice(5,7) : 0;
+    let h = '<table><thead><tr><th>Mes</th><th>Mediana</th><th>P75</th><th>P90</th><th>P98</th><th>Días</th></tr></thead><tbody>';
+    for (let m = 1; m <= 12; m++){
+      const x = c[String(m)];
+      if (!x) continue;
+      h += `<tr${m===actual?' style="font-weight:700"':''}><td>${meses[m-1]}</td><td>${fmt(x.p50)}</td><td>${fmt(x.p75)}</td><td>${fmt(x.p90)}</td><td>${fmt(x.p98)}</td><td>${x.n}</td></tr>`;
+    }
+    $('#climtabla').innerHTML = h+'</tbody></table>';
+    $('#climtit').textContent = 'FWI habitual por mes en '+est.nombre;
+    box.hidden = false;
+  }
+
+  function grafico(dias){
+    const box = $('#chart');
+    if (!dias.length){ box.innerHTML = '<p class="empty">Esta estación todavía no tiene días calculados.</p>'; return; }
+    const n = dias.length, slot = 34, left = 34, H = 190, base = H-26, top = 16;
+    const W = Math.max(300,left+n*slot+8);
+    const maxF = Math.max(...dias.map(r => r.fwi));
+    const ymax = Math.max(55,maxF*1.1);
+    const y = v => base-(v/ymax)*(base-top);
+    let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="FWI diario">`;
+    [[5.2,'5'],[11.2,'11'],[21.3,'21'],[38,'38'],[50,'50']].forEach(([t,l]) => {
+      if (t <= ymax){
+        s += `<line x1="${left}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-dasharray="3 4"/>`;
+        s += `<text x="${left-6}" y="${y(t)+3}" text-anchor="end" font-size="10" style="fill:var(--muted)">${l}</text>`;
+      }
+    });
+    s += `<line x1="${left}" x2="${W}" y1="${base}" y2="${base}" stroke="var(--line)"/>`;
+    dias.forEach((r,i) => {
+      const x = left+i*slot+4;
+      const lbl = esISO(r.fecha) ? (+r.fecha.slice(8))+'/'+(+r.fecha.slice(5,7)) : '';
+      const h = Math.max(2,base-y(r.fwi));
+      s += `<text x="${x+12}" y="${H-8}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${lbl}</text>`;
+      s += `<rect x="${x}" y="${base-h}" width="24" height="${h}" rx="3" fill="${colorDe(r.clase).c}"/>`;
+      s += `<text x="${x+12}" y="${base-h-4}" text-anchor="middle" font-size="10" font-weight="600" style="fill:var(--ink)">${fmt(r.fwi)}</text>`;
+    });
+    box.innerHTML = s+'</svg>';
+  }
+
+  function tabla(dias, est){
+    const tb = $('#tabla');
+    if (!dias.length){ tb.innerHTML = ''; $('#nota').textContent = ''; $('#todo').hidden = true; return; }
+    let h = '<table><thead><tr><th>Fecha</th><th>T (°C)</th><th>HR (%)</th><th>Viento (km/h)</th><th>Lluvia 24 h (mm)</th><th>FFMC</th><th>DMC</th><th>DC</th><th>ISI</th><th>BUI</th><th>FWI</th><th>Percentil</th></tr></thead><tbody>';
+    dias.slice().reverse().forEach(r => {
+      const col = colorDe(r.clase);
+      h += `<tr><td>${esISO(r.fecha)?fmtFecha(r.fecha):''}${r.hueco?' *':''}${r.calentando?' †':''}</td><td>${fmt(r.T)}</td><td>${fmt(r.H,0)}</td><td>${fmt(r.W)}</td><td>${fmt(r.R)}</td><td>${fmt(r.ffmc)}</td><td>${fmt(r.dmc)}</td><td>${fmt(r.dc)}</td><td>${fmt(r.isi)}</td><td>${fmt(r.bui)}</td><td class="fwi"><span style="background:${col.c};color:${col.fg}">${fmt(r.fwi)}</span></td><td>${r.pct != null ? r.pct : '—'}</td></tr>`;
+    });
+    tb.innerHTML = h+'</tbody></table>';
+    const notas = [];
+    if (dias.some(r => r.hueco)) notas.push('* Faltan días anteriores a esta fila; el valor es menos exacto.');
+    if (dias.some(r => r.calentando)) notas.push('† Los códigos se reiniciaron hace menos de '+((DATA.parametros||{}).calentamiento||45)+' días: el valor es orientativo y no cuenta para el histórico.');
+    if (dias.some(r => r.pct != null)) notas.push('Percentil: posición del día entre todos los días del mismo mes desde 2010 (100 = de los más altos).');
+    $('#nota').textContent = notas.join(' ');
+    const btn = $('#todo');
+    btn.hidden = est.dias.length <= DIAS_POR_DEFECTO;
+    btn.textContent = todo ? 'Ver solo los últimos '+DIAS_POR_DEFECTO+' días' : 'Ver todo el histórico ('+est.dias.length+' días)';
+  }
+
+  $('#stations').addEventListener('click', e => {
+    const b = e.target.closest('[data-st]');
+    if (!b || !DATA) return;
+    sel = +b.dataset.st; todo = false;
+    render();
+  });
+  $('#todo').addEventListener('click', () => { todo = !todo; detalle(); });
+})();
+</script>
+</body>
+</html>
