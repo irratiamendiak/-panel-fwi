@@ -1,0 +1,49 @@
+   name: Actualizar FWI
+
+   on:
+     schedule:
+       # Todas las horas son UTC. Euskadi va 1 h por delante en invierno y 2 h en verano.
+       - cron: "0 6 * * *"      # previsión de primera hora (08:00 en verano)
+       - cron: "30 10 * * *"    # 12:30 en verano: ya está el dato de las 12:00 (en invierno aún no)
+       - cron: "30 11 * * *"    # 13:30 en verano / 12:30 en invierno: dato de las 12:00
+       - cron: "30 12 * * *"    # respaldo por si alguna ejecución falla
+     workflow_dispatch:   # permite lanzarlo a mano desde la pestaña Actions
+
+   permissions:
+     contents: write      # para guardar los datos nuevos en el repositorio
+
+   concurrency:
+     group: fwi
+     cancel-in-progress: false
+
+   jobs:
+     actualizar:
+       runs-on: ubuntu-latest
+       timeout-minutes: 120
+       steps:
+         - uses: actions/checkout@v4
+
+         - uses: actions/setup-python@v5
+           with:
+             python-version: "3.12"
+
+         - name: Instalar dependencias
+           run: pip install pyjwt cryptography requests
+
+         - name: Descargar datos y calcular el FWI
+           env:
+             EUSKALMET_KEY: ${{ secrets.EUSKALMET_KEY }}
+             EUSKALMET_EMAIL: ${{ secrets.EUSKALMET_EMAIL }}
+           run: |
+             umask 077
+             printf '%s\n' "$EUSKALMET_KEY" > "$RUNNER_TEMP/clave.pem"
+             python actualizar_fwi.py --clave "$RUNNER_TEMP/clave.pem"
+             rm -f "$RUNNER_TEMP/clave.pem"
+
+         - name: Guardar los cambios
+           run: |
+             git config user.name "fwi-bot"
+             git config user.email "fwi-bot@users.noreply.github.com"
+             git add datos docs/data
+             git diff --staged --quiet || git commit -m "Actualiza datos FWI $(date -u +%F)"
+             git push
