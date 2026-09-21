@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Panel FWI · Riesgo de incendios en 5 estaciones</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -68,6 +69,24 @@ details li b{color:var(--ink);font-weight:600}
 
 @media (min-width:560px){ .stations{grid-template-columns:repeat(3,1fr)} }
 @media (min-width:800px){ .stations{grid-template-columns:repeat(5,1fr)} .st-val{font-size:38px} }
+
+/* Mapa */
+.mapa-ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.mapa-ctrl label{margin:0}
+.mapa-ctrl input[type=date]{width:auto;margin-top:2px}
+.mapa-ctrl input[type=range]{width:130px;min-height:auto;padding:0;margin-top:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:0 14px;min-height:44px;font:600 14px var(--f-body);cursor:pointer;border-radius:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+button.mini{min-width:44px;padding:0 10px;margin-top:0}
+#mapa{height:min(72vh,620px);min-height:380px;border-radius:10px;margin-top:12px;border:1px solid var(--line);background:var(--field);z-index:0}
+.pin-wrap{background:none;border:0}
+.pin{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;justify-content:center;min-width:40px;height:26px;padding:0 7px;border-radius:13px;font:800 13px var(--f-head);border:2px solid #14231c;box-shadow:0 1px 4px rgba(0,0,0,.45);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pin.sin{background:#c9d1cc;color:#3b4a43}
+.leyenda{background:var(--card);color:var(--ink);padding:8px 10px;border-radius:8px;border:1px solid var(--line);font:500 12px/1.6 var(--f-body)}
+.leyenda i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.leaflet-container{font-family:var(--f-body)}
+.leaflet-popup-content{margin:12px 14px;line-height:1.45}
 </style>
 </head>
 <body>
@@ -81,6 +100,24 @@ details li b{color:var(--ink);font-weight:600}
   <section aria-label="Resumen por estación">
     <h2>Última lectura calculada</h2>
     <div class="stations" id="stations"></div>
+  </section>
+
+  <section id="mapaSec" aria-label="Mapa de peligro">
+    <h2>Mapa de peligro en Gipuzkoa</h2>
+    <div class="card">
+      <div class="mapa-ctrl">
+        <div class="seg" role="group" aria-label="Tipo de mapa">
+          <button type="button" data-modo="zonas" aria-pressed="true">Zonas de influencia</button>
+          <button type="button" data-modo="idw" aria-pressed="false">Superficie continua</button>
+        </div>
+        <label>Día <input type="date" id="mapaFecha"></label>
+        <button type="button" class="ghost mini" id="mapaPrev" aria-label="Día anterior">‹</button>
+        <button type="button" class="ghost mini" id="mapaNext" aria-label="Día siguiente">›</button>
+        <label>Transparencia <input type="range" id="mapaOp" min="15" max="90" value="65" aria-label="Opacidad de la capa del FWI"></label>
+      </div>
+      <div id="mapa" role="application" aria-label="Mapa del FWI en Gipuzkoa"></div>
+      <p class="nota" id="mapaNota">Cargando mapa…</p>
+    </div>
   </section>
 
   <section>
@@ -109,6 +146,7 @@ details li b{color:var(--ink);font-weight:600}
       <li><b>Huecos.</b> Si una estación no midió un día, ese día no se calcula y el siguiente continúa desde el último valor disponible. Las filas con asterisco (*) vienen después de un hueco y son menos exactas. Si el hueco supera dos semanas, los códigos se reinician y los días siguientes se marcan con † hasta que se estabilizan.</li>
       <li><b>Percentil.</b> Compara el FWI de hoy con el de todos los días del mismo mes desde 2010 en esa estación. En un clima húmedo como el vuestro es más informativo que la clase general, porque un mismo FWI puede ser habitual en agosto y excepcional en mayo.</li>
       <li><b>Datos erróneos.</b> Se descartan las lecturas físicamente imposibles (por ejemplo, humedad del 0,3 % o 3.000 mm de lluvia en un día) antes de calcular.</li>
+      <li><b>Mapa.</b> Las zonas de influencia asignan a cada punto de Gipuzkoa el FWI de la estación más cercana (polígonos de Thiessen). La superficie continua interpola los cinco valores con ponderación por distancia inversa. Con cinco estaciones y un relieve tan variable es una orientación general, no un valor medido en cada monte; las capas de vegetación y riesgo estructural ayudan a interpretarlo.</li>
       <li><b>Latitud.</b> Los factores de duración del día están calibrados para unos 46° N, cercanos a los de Euskadi.</li>
       <li><b>Uso.</b> Herramienta orientativa: no sustituye a los avisos oficiales.</li>
     </ul>
@@ -124,6 +162,7 @@ details li b{color:var(--ink);font-weight:600}
   </details>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
 <script>
 (function(){
   const $ = s => document.querySelector(s);
@@ -146,7 +185,7 @@ details li b{color:var(--ink);font-weight:600}
 
   fetch('data/fwi.json',{cache:'no-store'})
     .then(r => { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(d => { DATA = d; render(); })
+    .then(d => { DATA = d; window.FWI_DATA = d; render(); document.dispatchEvent(new Event('fwi-datos')); })
     .catch(() => {
       $('#upd').innerHTML = '<span class="msg">No se han podido cargar los datos. Si has abierto el fichero directamente desde el disco, publícalo en una web (por ejemplo GitHub Pages) para que pueda leer data/fwi.json.</span>';
     });
@@ -270,6 +309,218 @@ details li b{color:var(--ink);font-weight:600}
     render();
   });
   $('#todo').addEventListener('click', () => { todo = !todo; detalle(); });
+})();
+</script>
+
+<script>
+(function(){
+  const $ = s => document.querySelector(s);
+  const COLORES = {
+    'Muy bajo': {c:'#2f8f5b', fg:'#ffffff'}, 'Bajo': {c:'#8fbf3f', fg:'#14231c'},
+    'Moderado': {c:'#f0c53b', fg:'#14231c'}, 'Alto': {c:'#ee8a2e', fg:'#14231c'},
+    'Muy alto': {c:'#d9382b', fg:'#ffffff'}, 'Extremo': {c:'#7a1f4d', fg:'#ffffff'}
+  };
+  const colorDe = n => COLORES[n] || {c:'#888888', fg:'#ffffff'};
+  // Rampa continua para la superficie interpolada (centro de cada clase)
+  const RAMPA = [[0,[47,143,91]],[2.6,[47,143,91]],[8.2,[143,191,63]],[16.3,[240,197,59]],[29.6,[238,138,46]],[44,[217,56,43]],[56,[122,31,77]]];
+  function rampa(f){
+    if (f <= RAMPA[0][0]) return RAMPA[0][1];
+    for (let i = 1; i < RAMPA.length; i++){
+      if (f <= RAMPA[i][0]){
+        const [x0,c0] = RAMPA[i-1], [x1,c1] = RAMPA[i], t = (f-x0)/(x1-x0);
+        return [0,1,2].map(k => Math.round(c0[k] + t*(c1[k]-c0[k])));
+      }
+    }
+    return RAMPA[RAMPA.length-1][1];
+  }
+  // Capas WMS de contexto. Para añadir otra, basta con una línea más en esta lista.
+  const CAPAS_WMS = [
+    {nombre:'Límites municipales (B5m)', url:'https://b5m.gipuzkoa.eus/ogc/wms/gipuzkoa_map_wms', layers:'udal_barrutiak_lerroak_limites_municipales_lineas', attr:'© Diputación Foral de Gipuzkoa (b5m)'},
+    {nombre:'Vegetación (B5m, solo con zoom)', url:'https://b5m.gipuzkoa.eus/ogc/wms/gipuzkoa_map_wms', layers:'landaredia_vegetacion', attr:'© Diputación Foral de Gipuzkoa (b5m)'},
+    {nombre:'Riesgo estructural de incendio, LiDAR 2012 (geoEuskadi)', url:'https://www.geo.euskadi.eus/geoeuskadi/services/W26GIS/WMS_NEKAZARITZA/MapServer/WMSServer', layers:'Sute_arriskua_Riesgo_de_incendio', attr:'© Gobierno Vasco / geoEuskadi'},
+    {nombre:'Matorral: peso seco t/ha, LiDAR 2012 (geoEuskadi)', url:'https://www.geo.euskadi.eus/geoeuskadi/services/W26GIS/WMS_NEKAZARITZA/MapServer/WMSServer', layers:'Sastrakadiaren_pisu_lehorra_t_ha_Peso_seco_matorral_t_ha', attr:'© Gobierno Vasco / geoEuskadi'}
+  ];
+  const esISO = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const fmt = (x,dec=1) => Number(x).toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const fmtFecha = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d).toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'}); };
+  const sumaDias = (s,n) => { const [y,m,d] = s.split('-').map(Number); const t = new Date(y,m-1,d+n); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); };
+  const merc = lat => Math.log(Math.tan(Math.PI/4 + lat*Math.PI/360));
+  const invMerc = y => (2*Math.atan(Math.exp(y)) - Math.PI/2)*180/Math.PI;
+
+  let iniciado = false;
+  document.addEventListener('fwi-datos', () => iniciar(window.FWI_DATA));
+  if (window.FWI_DATA) iniciar(window.FWI_DATA);
+
+  function iniciar(DATA){
+    if (iniciado || !DATA) return;
+    iniciado = true;
+    if (typeof L === 'undefined'){ $('#mapaNota').textContent = 'No se ha podido cargar la librería del mapa (Leaflet). Comprueba la conexión y recarga la página.'; return; }
+    const pedir = u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); });
+    Promise.all([pedir('data/zonas.geojson'), pedir('data/gipuzkoa.geojson'), pedir('data/municipios.geojson')])
+      .then(([zonas, contorno, muni]) => montar(DATA, zonas, contorno, muni))
+      .catch(() => { $('#mapaNota').textContent = 'No se han podido cargar los datos geográficos del mapa (carpeta data: zonas, gipuzkoa y municipios).'; });
+  }
+
+  function montar(DATA, zonas, contorno, muni){
+    const INFO = {};
+    zonas.features.forEach(f => { INFO[f.properties.estacion] = f.properties; });
+    const est = DATA.estaciones.filter(e => INFO[e.nombre]);
+    const porFecha = {};
+    let fMin = '9999-99-99', fMax = '0000-00-00';
+    est.forEach(e => {
+      porFecha[e.nombre] = new Map(e.dias.map(d => [d.fecha, d]));
+      e.dias.forEach(d => { if (d.fecha < fMin) fMin = d.fecha; if (d.fecha > fMax) fMax = d.fecha; });
+    });
+    if (fMax < fMin){ $('#mapaNota').textContent = 'Todavía no hay días calculados para mostrar en el mapa.'; return; }
+    const estado = {fecha: fMax, modo: 'zonas', op: 0.65};
+
+    // ---- mapa y capas base
+    const mapa = L.map('mapa', {minZoom: 8, maxZoom: 17}).fitBounds([[42.88,-2.66],[43.42,-1.70]]);
+    const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'}).addTo(mapa);
+    const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {maxZoom: 17, attribution: '© OpenTopoMap, © OpenStreetMap'});
+    const wms = {};
+    CAPAS_WMS.forEach(c => { wms[c.nombre] = L.tileLayer.wms(c.url, {layers: c.layers, format: 'image/png', transparent: true, version: '1.3.0', attribution: c.attr, opacity: 0.85}); });
+
+    // ---- contorno, zonas, municipios, estaciones
+    const capaContorno = L.geoJSON(contorno, {style: {fill: false, color: '#14231c', weight: 2, opacity: 0.9}, interactive: false}).addTo(mapa);
+    const valorDe = nombre => { const m = porFecha[nombre]; return m ? (m.get(estado.fecha) || null) : null; };
+    const textoFWI = (nombre) => {
+      const d = valorDe(nombre);
+      if (!d) return nombre+': sin dato este día';
+      return nombre+': FWI '+fmt(d.fwi)+' ('+d.clase.toLowerCase()+')';
+    };
+    const estiloZona = f => {
+      const d = valorDe(f.properties.estacion);
+      return {fillColor: d ? colorDe(d.clase).c : '#9aa5a0', fillOpacity: estado.op, color: '#14231c', weight: 1.2, opacity: 0.6};
+    };
+    const capaZonas = L.geoJSON(zonas, {style: estiloZona, onEachFeature: (f, layer) => {
+      layer.bindTooltip(() => textoFWI(f.properties.estacion), {sticky: true});
+    }}).addTo(mapa);
+
+    const capaMuni = L.geoJSON(muni, {style: {fill: true, fillOpacity: 0, color: '#3b4a43', weight: 0.8, opacity: 0.8}, onEachFeature: (f, layer) => {
+      layer.bindTooltip(() => {
+        const p = f.properties, rep = Object.entries(p.reparto).map(([n,v]) => n+' '+v+' %').join(', ');
+        const dom = Object.keys(p.reparto)[0], d = valorDe(dom);
+        return '<b>'+p.nombre+'</b> ('+p.comarca+')<br>Influencia: '+rep+'<br>'+(d ? 'FWI de la estación principal ('+dom+'): '+fmt(d.fwi) : dom+': sin dato este día');
+      }, {sticky: true});
+    }});
+
+    const pins = est.map(e => {
+      const inf = INFO[e.nombre];
+      const m = L.marker([inf.lat, inf.lon], {title: e.nombre, riseOnHover: true});
+      m.bindPopup(() => popup(e));
+      return m;
+    });
+    const capaPins = L.layerGroup(pins).addTo(mapa);
+
+    function popup(e){
+      const inf = INFO[e.nombre], d = valorDe(e.nombre);
+      let h = '<b>'+e.nombre+'</b> ('+inf.codigo+', '+inf.alt+' m)<br>';
+      if (!d) return h+'Sin dato el '+fmtFecha(estado.fecha)+'.';
+      h += '<span style="display:inline-block;margin:4px 0;padding:1px 10px;border-radius:999px;font-weight:700;background:'+colorDe(d.clase).c+';color:'+colorDe(d.clase).fg+'">FWI '+fmt(d.fwi)+' · '+d.clase+'</span><br>';
+      if (d.pct != null) h += 'Percentil '+d.pct+' de su mes<br>';
+      h += 'T '+fmt(d.T)+' °C · HR '+fmt(d.H,0)+' % · viento '+fmt(d.W)+' km/h · lluvia '+fmt(d.R)+' mm<br>';
+      h += 'FFMC '+fmt(d.ffmc)+' · DMC '+fmt(d.dmc)+' · DC '+fmt(d.dc)+(d.calentando ? '<br>† valores aún en calentamiento' : '');
+      return h;
+    }
+    function iconoPin(d){
+      if (!d) return L.divIcon({className: 'pin-wrap', html: '<div class="pin sin">s/d</div>', iconSize: [0,0]});
+      const c = colorDe(d.clase);
+      return L.divIcon({className: 'pin-wrap', html: '<div class="pin" style="background:'+c.c+';color:'+c.fg+'">'+fmt(d.fwi)+'</div>', iconSize: [0,0]});
+    }
+
+    // ---- superficie continua (IDW) sobre una rejilla recortada al contorno
+    const G = {W: 300, H: 240};
+    let mascara = null, xs = null, ys = null, limites = null, capaIDW = null;
+    function prepararRejilla(){
+      const anillos = contorno.features[0].geometry.coordinates.map(p => p[0]);
+      let lonMin = 99, lonMax = -99, latMin = 99, latMax = -99;
+      anillos.forEach(a => a.forEach(([x,y]) => { if (x < lonMin) lonMin = x; if (x > lonMax) lonMax = x; if (y < latMin) latMin = y; if (y > latMax) latMax = y; }));
+      limites = {lonMin, lonMax, latMin, latMax};
+      const yMin = merc(latMin), yMax = merc(latMax);
+      const lat0 = (latMin+latMax)/2, kx = 111.32*Math.cos(lat0*Math.PI/180), ky = 110.57;
+      mascara = new Uint8Array(G.W*G.H); xs = new Float32Array(G.W*G.H); ys = new Float32Array(G.W*G.H);
+      const dentro = (x, y, a) => { let s = false; for (let i = 0, j = a.length-1; i < a.length; j = i++){ const xi = a[i][0], yi = a[i][1], xj = a[j][0], yj = a[j][1]; if ((yi > y) !== (yj > y) && x < (xj-xi)*(y-yi)/(yj-yi)+xi) s = !s; } return s; };
+      for (let r = 0; r < G.H; r++){
+        const lat = invMerc(yMax - (r+0.5)/G.H*(yMax-yMin));
+        for (let c = 0; c < G.W; c++){
+          const lon = lonMin + (c+0.5)/G.W*(lonMax-lonMin), i = r*G.W+c;
+          xs[i] = (lon-lonMin)*kx; ys[i] = (lat-latMin)*ky;
+          mascara[i] = anillos.some(a => dentro(lon, lat, a)) ? 1 : 0;
+        }
+      }
+      limites.kx = kx; limites.ky = ky;
+    }
+    function pintarIDW(){
+      if (!mascara) prepararRejilla();
+      const pts = est.map(e => ({d: valorDe(e.nombre), inf: INFO[e.nombre]})).filter(p => p.d)
+        .map(p => ({x: (p.inf.lon-limites.lonMin)*limites.kx, y: (p.inf.lat-limites.latMin)*limites.ky, f: p.d.fwi}));
+      const cv = document.createElement('canvas'); cv.width = G.W; cv.height = G.H;
+      const ctx = cv.getContext('2d'), img = ctx.createImageData(G.W, G.H);
+      if (pts.length){
+        for (let i = 0; i < G.W*G.H; i++){
+          if (!mascara[i]) continue;
+          let sw = 0, sf = 0;
+          for (const p of pts){ const d2 = (xs[i]-p.x)**2 + (ys[i]-p.y)**2 + 0.25; const w = 1/d2; sw += w; sf += w*p.f; }
+          const c = rampa(sf/sw);
+          img.data[4*i] = c[0]; img.data[4*i+1] = c[1]; img.data[4*i+2] = c[2]; img.data[4*i+3] = 255;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+      const url = cv.toDataURL('image/png');
+      const bounds = [[limites.latMin, limites.lonMin], [limites.latMax, limites.lonMax]];
+      if (!capaIDW) capaIDW = L.imageOverlay(url, bounds, {opacity: estado.op, interactive: false});
+      else { capaIDW.setUrl(url); capaIDW.setOpacity(estado.op); }
+    }
+
+    // ---- leyenda
+    const leyenda = L.control({position: 'bottomright'});
+    leyenda.onAdd = () => {
+      const div = L.DomUtil.create('div', 'leyenda');
+      div.innerHTML = '<b>FWI</b><br>' + [['Muy bajo','< 5,2'],['Bajo','5,2–11,2'],['Moderado','11,2–21,3'],['Alto','21,3–38'],['Muy alto','38–50'],['Extremo','> 50']]
+        .map(([n,r]) => '<i style="background:'+colorDe(n).c+'"></i>'+n+' ('+r+')').join('<br>') + '<br><i style="background:#9aa5a0"></i>Sin dato';
+      return div;
+    };
+    leyenda.addTo(mapa);
+
+    const overlays = Object.assign({'Estaciones (FWI del día)': capaPins, 'Municipios (nombre e influencia)': capaMuni}, wms);
+    L.control.layers({'Mapa (OpenStreetMap)': osm, 'Relieve (OpenTopoMap)': topo}, overlays, {collapsed: true}).addTo(mapa);
+
+    // ---- repintado
+    function pintar(){
+      $('#mapaFecha').value = estado.fecha;
+      capaZonas.setStyle(estiloZona);
+      pins.forEach((m, i) => m.setIcon(iconoPin(valorDe(est[i].nombre))));
+      if (estado.modo === 'idw'){
+        pintarIDW();
+        if (mapa.hasLayer(capaZonas)) mapa.removeLayer(capaZonas);
+        if (!mapa.hasLayer(capaIDW)) capaIDW.addTo(mapa);
+      } else {
+        if (capaIDW && mapa.hasLayer(capaIDW)) mapa.removeLayer(capaIDW);
+        if (!mapa.hasLayer(capaZonas)) capaZonas.addTo(mapa);
+      }
+      capaContorno.bringToFront();
+      const sin = est.filter(e => !valorDe(e.nombre)).map(e => e.nombre);
+      $('#mapaNota').textContent = fmtFecha(estado.fecha)+'. '+
+        (estado.modo === 'zonas' ? 'Cada zona toma el FWI de su estación más cercana (polígonos de Thiessen).' : 'Interpolación de los FWI de las estaciones por distancia inversa.')+
+        (sin.length ? ' Sin dato ese día: '+sin.join(', ')+'.' : '')+
+        ' Orientativo: cinco estaciones no captan las diferencias locales de relieve, exposición ni combustible.';
+    }
+
+    // ---- controles
+    const f = $('#mapaFecha'); f.min = fMin; f.max = fMax; f.value = fMax;
+    f.addEventListener('change', () => { if (esISO(f.value)) { estado.fecha = f.value < fMin ? fMin : (f.value > fMax ? fMax : f.value); pintar(); } });
+    $('#mapaPrev').addEventListener('click', () => { const n = sumaDias(estado.fecha, -1); if (n >= fMin){ estado.fecha = n; pintar(); } });
+    $('#mapaNext').addEventListener('click', () => { const n = sumaDias(estado.fecha, 1); if (n <= fMax){ estado.fecha = n; pintar(); } });
+    $('#mapaOp').addEventListener('input', e => { estado.op = +e.target.value/100; capaZonas.setStyle(estiloZona); if (capaIDW) capaIDW.setOpacity(estado.op); });
+    document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+      estado.modo = b.dataset.modo;
+      document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      pintar();
+    }));
+    pintar();
+    setTimeout(() => mapa.invalidateSize(), 200);
+  }
 })();
 </script>
 </body>
