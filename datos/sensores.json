@@ -133,5 +133,32 @@
       "tipo": "measuresForWind",
       "medida": "mean_direction"
     }
+  },
+  "Zarautz": {
+    "temperatura": {
+      "sensor": "R0ES",
+      "tipo": "measuresForAir",
+      "medida": "temperature"
+    },
+    "humedad": {
+      "sensor": "R0ES",
+      "tipo": "measuresForAir",
+      "medida": "humidity"
+    },
+    "viento": {
+      "sensor": "Y0AQ",
+      "tipo": "measuresForWind",
+      "medida": "mean_speed"
+    },
+    "direccion": {
+      "sensor": "Y0AQ",
+      "tipo": "measuresForWind",
+      "medida": "mean_direction"
+    },
+    "lluvia": {
+      "sensor": "G465",
+      "tipo": "measuresForWater",
+      "medida": "precipitation"
+    }
   }
 }
