@@ -270,13 +270,15 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const extra = u.calentando ? '<span class="st-date">† berotzen: fidagarritasun gutxikoa</span>'
                   : (u.pct != null ? `<span class="st-date">Hilabeteko ${u.pct}. pertzentila</span>` : '');
       const linViento = `<span class="st-date">Haizea: ${fmt(u.W)} km/h${u.dir!=null?' ('+sector8(u.dir)+')':''}</span>`;
+      const linDatos = `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
       return `<button class="st${est.modelo?' eredua':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
         <span class="st-name">${est.nombre}</span>
-        <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span><span class="st-isi">ISI ${fmt(u.isi)}</span></span>
+        <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span><span class="st-isi">ISI ${fmt(u.isi)} · DC ${fmt(u.dc)}</span></span>
         <span class="chip" style="background:${col.c};color:${col.fg}">${claseEu(u.clase)}</span>
         ${insigniaEredua}
         <span class="st-date${viejo?' viejo':''}">${esISO(u.fecha)?fmtFecha(u.fecha):''}${viejo?' · datu berri gabe':''}</span>
         ${extra}
+        ${linDatos}
         ${linViento}
         ${chipViento(u)}
         ${linPrev}
@@ -300,7 +302,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         if (!p) return '<td>—</td>';
         const c = colorDe(p.clase);
         const vTxt = p.W!=null ? fmt(p.W,0)+' km/h'+(p.dir!=null?' ('+sector8(p.dir)+')':'') : '';
-        return `<td class="fwi"><span style="background:${c.c};color:${c.fg}">${fmt(p.fwi)}</span><small class="rg">${fmt(p.min,0)}–${fmt(p.max,0)}</small>${vTxt?'<small class="rg">'+vTxt+'</small>':''}${p.k === 0 ? '<small class="rg">kalkulatua</small>' : ''}${p.mult_viento>1?'<small class="rg">💨×'+fmt(p.mult_viento,1)+'</small>':''}</td>`;
+        return `<td class="fwi"><span style="background:${c.c};color:${c.fg}">${fmt(p.fwi)}</span><small class="rg">${fmt(p.min,0)}–${fmt(p.max,0)}</small><small class="rg">ISI ${fmt(p.isi)}</small>${vTxt?'<small class="rg">'+vTxt+'</small>':''}${p.k === 0 ? '<small class="rg">kalkulatua</small>' : ''}${p.mult_viento>1?'<small class="rg">💨×'+fmt(p.mult_viento,1)+'</small>':''}</td>`;
       }).join('') + '</tr>';
     });
     $('#prevTabla').innerHTML = h + '</tbody></table>';
