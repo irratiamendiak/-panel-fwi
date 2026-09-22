@@ -23,6 +23,7 @@ ESTACIONES = {
     "Berastegi": ("C026", 43.1248000, -1.981700, 379),
     "Zegama":    ("C028", 42.9588000, -2.298520, 520),
     "Mutriku":   (None, 43.3072000, -2.385000, 20),    # sin estación física: estimación de Open-Meteo
+    "Zarautz":   ("C064", 43.2930000, -2.145400, 10),   # + C086 Inurritza (lluvia)
 }
 MODELO_ESTACIONES = {"Mutriku"}
 TOL = 40.0      # tolerancia de simplificación (m)
