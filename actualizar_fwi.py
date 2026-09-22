@@ -395,7 +395,7 @@ def descargar_zarautz(cli, alm, sensores, datos, dia_fin, hora, max_dias):
     dia = desde
     while dia <= dia_fin:
         if dia.isoformat() not in existentes:
-            fila, motivo = zr.leer_dia(alm, sens, dia, hora)
+            fila, motivo = zr.leer_dia(cli, alm, sens, dia, hora)
             if fila:
                 existentes[fila["fecha"]] = fila
                 nuevas += 1

@@ -65,20 +65,53 @@ def asegurar_sensores(cli, sens, dia, alm=None, hora=None):
     return all(v in sens for v in ("temperatura", "humedad", "viento", "lluvia"))
 
 
-def leer_dia(alm, sens, dia, hora):
-    """(fila, motivo) de un día. fila es None si no se puede construir ese día."""
-    t = ew.valor_puntual(alm, ESTACION, sens, "temperatura", dia, hora)
-    h = ew.valor_puntual(alm, ESTACION, sens, "humedad", dia, hora)
-    w = ew.valor_puntual(alm, ESTACION, sens, "viento", dia, hora)
+def leer_dia(cli, alm, sens, dia, hora):
+    """(fila, motivo) de un día. fila es None si no se puede construir ese día.
+
+    Si Zarautz ha cambiado de sensor de temperatura/humedad/viento (o Inurritza, de lluvia),
+    se vuelve a detectar ese mismo día y se reintenta, igual que con las demás estaciones."""
+    def leer_principales():
+        t = ew.valor_puntual(alm, ESTACION, sens, "temperatura", dia, hora)
+        h = ew.valor_puntual(alm, ESTACION, sens, "humedad", dia, hora)
+        w = ew.valor_puntual(alm, ESTACION, sens, "viento", dia, hora)
+        return t, h, w
+
+    t, h, w = leer_principales()
+    if None in (t, h, w):
+        nuevos = sensores_parciales(cli, ESTACION, dia,
+                                    {"temperatura": ew.MEDIDAS["temperatura"], "humedad": ew.MEDIDAS["humedad"],
+                                     "viento": ew.MEDIDAS["viento"]})
+        if any(nuevos.get(v) and nuevos[v] != sens.get(v) for v in nuevos):
+            alm.olvidar(ESTACION, [dia])
+            sens.update(nuevos)
+            t, h, w = leer_principales()
     if None in (t, h, w):
         faltan = [k for k, v in (("temperatura", t), ("humedad", h), ("viento", w)) if v is None]
         return None, f"sin lectura a las {hora:02d}:00 de " + ", ".join(faltan) + " (Zarautz)"
+
     dv = ew.valor_puntual(alm, ESTACION, sens, "direccion", dia, hora) if "direccion" in sens else None
+    if dv is None and "direccion" in sens:
+        cand = dict(sens["viento"], medida="mean_direction")
+        try:
+            d = alm.hora(ESTACION, "direccion", {"direccion": cand}, dia, hora)
+            if d.get((hora, 0)) is not None:
+                sens["direccion"] = cand
+                dv = ew.valor_puntual(alm, ESTACION, sens, "direccion", dia, hora)
+        except RuntimeError:
+            pass
+
     ll, n = ew.lluvia_24h(alm, ESTACION_LLUVIA, sens, dia, hora)
+    if n < ew.LECTURAS_POR_DIA - 6:
+        nuevo = sensores_parciales(cli, ESTACION_LLUVIA, dia, {"lluvia": ew.MEDIDAS["lluvia"]})
+        if nuevo.get("lluvia") and nuevo["lluvia"] != sens.get("lluvia"):
+            alm.olvidar(ESTACION_LLUVIA, [dia])
+            sens["lluvia"] = nuevo["lluvia"]
+            ll, n = ew.lluvia_24h(alm, ESTACION_LLUVIA, sens, dia, hora)
     if n == 0:
         return None, "sin lecturas de lluvia (Inurritza)"
     if n < ew.LECTURAS_POR_DIA - 6:
         return None, f"lluvia incompleta en Inurritza ({n}/{ew.LECTURAS_POR_DIA})"
+
     fila = {"fecha": dia.isoformat(), "temperatura": round(t, 1), "humedad": round(h, 1),
             "viento": round(w * 3.6, 1), "lluvia": round(ll, 2),
             "direccion": round(dv) if dv is not None else None}
