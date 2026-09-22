@@ -55,7 +55,12 @@ COORD = {   # nombre: (latitud, longitud, altitud)
     "Arrasate": (43.0695849, -2.493080, 318), "Miramon": (43.2868, -1.97121, 113),
     "Bidania": (43.146, -2.15502, 592), "Berastegi": (43.1248, -1.9817, 379),
     "Zegama": (42.9588, -2.29852, 520),
+    "Mutriku": (43.3072, -2.3850, 20),   # sin estación física: estimación de Open-Meteo (ver MODELO_ESTACIONES)
 }
+# Puntos sin sensor real detrás: el dato "de hoy" también es una estimación de modelo (Open-Meteo),
+# sin nada local con que corregirla ni contrastarla, a diferencia de las estaciones de Euskalmet.
+MODELO_ESTACIONES = {"Mutriku"}
+IDENTIDAD = {"T": ("id", 0), "H": ("id", 0), "W": ("id", 0)}   # sin corrección: no hay estación con la que calibrarla
 DIAS_JSON = 400      # días recientes que se publican en la web
 # Multiplicador aproximado de la tasa de incendios con viento del cuadrante sur, calibrado con el
 # registro EGIF de incendios de Gipuzkoa 2010-2025 (ver el análisis del panel): a igualdad de FWI,
@@ -235,7 +240,7 @@ def rango_percentil(v, x):
 
 # ---------------------------------------------------------------- histórico
 def leer_historial():
-    datos = {n: {} for n in ew.ESTACIONES}
+    datos = {n: {} for n in list(ew.ESTACIONES) + list(MODELO_ESTACIONES)}
     if HISTORIAL.exists():
         with open(HISTORIAL, newline="", encoding="utf-8") as f:
             for r in csv.DictReader(f):
@@ -327,6 +332,39 @@ def lluvia_con_observada(alm, cod, sens, horas):
     return round(total, 2), medidas
 
 
+def descargar_mutriku(datos, dia_fin, hora, dias_atras=3):
+    """Rellena los últimos días de Mutriku con la estimación de Open-Meteo (sin estación física).
+
+    Solo cubre un margen corto (por defecto 3 días): para el histórico largo se usa
+    mutriku_historico.py, ejecutado aparte, igual que con el resto de estaciones y Euskalmet.
+    """
+    if pv is None:
+        return 0
+    nombre = "Mutriku"
+    existentes = datos.setdefault(nombre, {})
+    faltan = [dia_fin - timedelta(days=k) for k in range(dias_atras)
+              if (dia_fin - timedelta(days=k)).isoformat() not in existentes]
+    if not faltan:
+        return 0
+    try:
+        tabla = pv.descargar_horario(*COORD[nombre])
+    except RuntimeError as e:
+        print(f"{nombre}: no se ha podido descargar de Open-Meteo ({type(e).__name__}: {str(e)[:150]})")
+        return 0
+    nuevas = 0
+    for dia in sorted(faltan):
+        e = pv.entradas_dia(tabla, dia, hora)
+        if not e:
+            continue
+        T, H, W, DV, P, _ = e
+        existentes[dia.isoformat()] = {"fecha": dia.isoformat(), "temperatura": round(T, 1), "humedad": round(H, 1),
+                                       "viento": round(W, 1), "lluvia": round(P, 1),
+                                       "direccion": round(DV) if DV is not None else None}
+        nuevas += 1
+        print(f"{dia} {nombre} (Open-Meteo, sin estación): T={T:.1f} HR={H:.0f} viento={W:.1f} km/h lluvia={P:.1f} mm")
+    return nuevas
+
+
 def crear_previsor(alm, sensores, hora):
     """Devuelve una función que calcula la previsión a 0-3 días de cada estación (o None si no está disponible)."""
     if pv is None:
@@ -354,11 +392,12 @@ def crear_previsor(alm, sensores, hora):
                 if e is None:
                     break
                 T, H, W, DV, P, horas = e
-                T, H, W = pv.corregir(corr[f"{nombre}|{min(3, max(0, j))}"], T, H, W)
+                T, H, W = pv.corregir(corr.get(f"{nombre}|{min(3, max(0, j))}", IDENTIDAD), T, H, W)
                 medidas = 0
-                if j == 0 and alm.cli.errores_conexion == 0 and alm.cli.limite_agotado < 2:   # hoy, antes de las 12:00: la lluvia ya caída se toma de la estación
+                cod_est = ew.ESTACIONES.get(nombre)
+                if j == 0 and cod_est and alm.cli.errores_conexion == 0 and alm.cli.limite_agotado < 2:   # hoy, antes de las 12:00: la lluvia ya caída se toma de la estación
                     try:
-                        P, medidas = lluvia_con_observada(alm, ew.ESTACIONES[nombre], sensores[ew.ESTACIONES[nombre]], horas)
+                        P, medidas = lluvia_con_observada(alm, cod_est, sensores[cod_est], horas)
                     except (RuntimeError, KeyError):
                         pass
                 F = ffmc_step(T, H, W, P, F)
@@ -388,10 +427,10 @@ def crear_previsor(alm, sensores, hora):
 
 
 def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
-    orden = list(ew.ESTACIONES)
+    orden = list(ew.ESTACIONES) + list(MODELO_ESTACIONES)
     filas_csv = []
     cascadas, estados = {}, {}
-    for nombre in ew.ESTACIONES:
+    for nombre in orden:
         filas = [datos[nombre][k] for k in sorted(datos[nombre])]
         filas_csv += [[f["fecha"], nombre, f["temperatura"], f["humedad"], f["viento"], f["lluvia"],
                        f.get("direccion") if f.get("direccion") is not None else ""] for f in filas]
@@ -433,12 +472,13 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
             previsiones = None
 
     estaciones = []
-    for nombre, cod in ew.ESTACIONES.items():
+    for nombre in orden:
         recientes = cascadas[nombre][-dias_json:]
         for d in recientes:
             v = ref.get((nombre, int(d["fecha"][5:7])))
             d["pct"] = rango_percentil(v, d["fwi"]) if (v and len(v) >= 30 and not d["calentando"]) else None
-        estaciones.append({"nombre": nombre, "codigo": cod, "n_total": len(cascadas[nombre]),
+        estaciones.append({"nombre": nombre, "codigo": ew.ESTACIONES.get(nombre), "n_total": len(cascadas[nombre]),
+                           "modelo": nombre in MODELO_ESTACIONES,
                            "dias": recientes, "prevision": (previsiones or {}).get(nombre, [])})
 
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
@@ -519,6 +559,7 @@ def main() -> int:
             if "direccion" not in sensores_inicio.get(cod, {}):
                 print(f"{nombre}: sensor de dirección del viento encontrado ({sensores[cod]['direccion']['sensor']}).")
     nuevas = descargar(cli, sensores, datos, dia_fin, primera, a.hora, a.max_dias, alm, limite)
+    nuevas += descargar_mutriku(datos, dia_fin, a.hora)
     if sensores != sensores_inicio:
         SENSORES.write_text(json.dumps(sensores, ensure_ascii=False, indent=2), encoding="utf-8")
     previsor = None if a.sin_prevision else crear_previsor(alm, sensores, a.hora)
