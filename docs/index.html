@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>FWI panela · Suteen arriskua 5 estaziotan</title>
+<title>FWI panela · Suteen arriskua Gipuzkoan</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,6 +34,8 @@ section{margin-bottom:22px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
 .chip{display:inline-block;padding:3px 12px;border-radius:999px;font-weight:600;font-size:14px;background:var(--line);color:var(--ink);white-space:nowrap}
 .chip.viento{background:var(--wind-bg);color:var(--wind)}
+.chip.eredua{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
+.st.eredua{border-style:dashed}
 
 .stations{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
 .st{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-height:150px}
@@ -79,6 +81,7 @@ td.fwi{white-space:nowrap}
 tr.prev td{font-style:italic;background:rgba(127,127,127,.08)}
 .st-prev{font-size:12px;color:var(--ink);line-height:1.3}
 .pin.prev{border-style:dashed}
+.pin.eredua{opacity:0.85;box-shadow:0 1px 4px rgba(0,0,0,.45), 0 0 0 2px var(--card) inset}
 
 /* Mapa */
 .mapa-ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
@@ -102,8 +105,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 <body>
 <main>
   <header>
-    <h1>5 estazioetako FWI panela</h1>
-    <p class="lede">Suteen arrisku meteorologikoa (Fire Weather Index) Zegaman, Bidanian, Miramonen, Berastegin eta Arrasaten, Euskalmeten eguerdiko datuekin egunero kalkulatua.</p>
+    <h1>FWI panela: Gipuzkoako suteen arriskua</h1>
+    <p class="lede">Suteen arrisku meteorologikoa (Fire Weather Index) Zegaman, Bidanian, Miramonen, Berastegin eta Arrasaten, Euskalmeten eguerdiko datuekin egunero kalkulatua, eta Mutrikun, kostaldeko hutsunea betetzeko, estaziorik ez dagoenez Open-Meteo ereduaren estimazioarekin (🖥️ eredua markatuta).</p>
     <p class="upd" id="upd">Datuak kargatzen…</p>
   </header>
 
@@ -140,6 +143,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
   <section>
     <h2 id="detTitle">Xehetasuna</h2>
+    <p class="nota" id="eredNota" hidden>🖥️ Puntu hau ez dago estazio fisiko baten gainean: Open-Meteo ereduaren estimazioa da (ez neurketa), tokiko estaziorik gabe zuzendu edo egiaztatu gabea.</p>
     <div class="card">
       <div class="chart" id="chart"></div>
     </div>
@@ -168,6 +172,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       <li><b>Haize-abisua.</b> Hego laurdeneko haizeak (S, SE, SO) sute-ohiko probabilitatea handitu egiten du FWI berdinarekin. Gipuzkoako 2010-2025eko EGIF su-erregistroarekin egindako azterketa batek biderkatzaile hurbil bat kalibratu du FWI mailaren arabera. Ez da FWIa aldatzen: aparteko abisu informatibo bat da, kasu gutxitan oinarritua, eta ez du ordezkatzen FWI zenbaki nagusia.</li>
       <li><b>ISI.</b> Hedapen-abiadura hasierakoa adierazten du (erregai fin lehorra + haizea, ez du hezetasun sakona kontuan hartzen). EGIF erregistroarekin egindako azterketan FWIa bezain ondo edo hobeto bereizten ditu egun arriskutsuak, batez ere erregai finaren araberako suteetan.</li>
       <li><b>Mapa.</b> Eragin-eremuek Gipuzkoako puntu bakoitzari hurbilen duen estazioaren FWIa esleitzen diote (Thiessen poligonoak). Gainazal jarraituak bost balioak interpolatzen ditu alderantzizko distantziaren arabera haztatuta. Bost estaziorekin eta erliebe hain aldakorrarekin, orientazio orokorra da, ez mendi bakoitzean neurtutako balioa; landaredia eta arrisku egiturazkoaren geruzek interpretatzen laguntzen dute.</li>
+      <li><b>Mutriku.</b> Ez dauka estazio fisikorik martxan; Open-Meteo ereduaren estimazioa erabiltzen du zuzenean, 2010etik aurrerako historikoarekin (ERA5 datu-basea). Beste bost estazioek bezala kalkulatzen da, baina bertan tokiko neurketarik ez dagoenez, ez dago zuzentzeko edo egiaztatzeko biderik: iragarpenaren ziurgabetasun bera du datu "erreala" ere.</li>
       <li><b>Latitudea.</b> Eguneko iraupen-faktoreak 46° N inguruko latitudeetarako kalibratuta daude, Euskadikoen antzekoak.</li>
       <li><b>Erabilera.</b> Tresna orientagarria: ez ditu ordezkatzen abisu ofizialak.</li>
     </ul>
@@ -259,15 +264,17 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const col = colorDe(u.clase);
       const atras = esISO(u.fecha) ? Math.round((hoy - fecha(u.fecha))/864e5) : 0;
       const viejo = atras > 2;
+      const insigniaEredua = est.modelo ? '<span class="chip eredua">🖥️ eredua</span>' : '';
       const p1 = conPrevision(est).prev[0];
       const linPrev = p1 ? `<span class="st-prev">Iragarpena ${fmtFecha(p1.fecha)}: <b>${fmt(p1.fwi)}</b> (${fmt(p1.min,0)}–${fmt(p1.max,0)})</span>` : '';
       const extra = u.calentando ? '<span class="st-date">† berotzen: fidagarritasun gutxikoa</span>'
                   : (u.pct != null ? `<span class="st-date">Hilabeteko ${u.pct}. pertzentila</span>` : '');
       const linViento = `<span class="st-date">Haizea: ${fmt(u.W)} km/h${u.dir!=null?' ('+sector8(u.dir)+')':''}</span>`;
-      return `<button class="st" type="button" data-st="${i}" aria-pressed="${i===sel}">
+      return `<button class="st${est.modelo?' eredua':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
         <span class="st-name">${est.nombre}</span>
         <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span><span class="st-isi">ISI ${fmt(u.isi)}</span></span>
         <span class="chip" style="background:${col.c};color:${col.fg}">${claseEu(u.clase)}</span>
+        ${insigniaEredua}
         <span class="st-date${viejo?' viejo':''}">${esISO(u.fecha)?fmtFecha(u.fecha):''}${viejo?' · datu berri gabe':''}</span>
         ${extra}
         ${linViento}
@@ -313,11 +320,12 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
   function detalle(){
     const est = DATA.estaciones[sel];
-    $('#detTitle').textContent = 'Xehetasuna: '+est.nombre+' ('+est.codigo+')';
+    $('#detTitle').textContent = 'Xehetasuna: '+est.nombre+(est.codigo?' ('+est.codigo+')':'');
     const dias = (todo ? est.dias : est.dias.slice(-DIAS_POR_DEFECTO)).concat(conPrevision(est).prev);
     grafico(dias);
     tabla(dias, est);
     climatologia(est);
+    $('#eredNota').hidden = !est.modelo;
   }
 
   function climatologia(est){
@@ -491,11 +499,12 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     const textoFWI = (nombre) => {
       const d = valorDe(nombre);
       if (!d) return nombre+': egun honetan daturik ez';
-      return nombre+': FWI '+fmt(d.fwi)+' ('+claseEuMin(d.clase)+')'+(d.prev ? ' · iragarpena, tartea '+fmt(d.min,0)+'–'+fmt(d.max,0) : '')+(d.mult_viento>1 ? ' · 💨 hego haizea ×'+fmt(d.mult_viento,1) : '');
+      return nombre+': FWI '+fmt(d.fwi)+' ('+claseEuMin(d.clase)+')'+(d.prev ? ' · iragarpena, tartea '+fmt(d.min,0)+'–'+fmt(d.max,0) : '')+(d.mult_viento>1 ? ' · 💨 hego haizea ×'+fmt(d.mult_viento,1) : '')+(INFO[nombre].modelo ? ' · 🖥️ eredua, ez estazioa' : '');
     };
     const estiloZona = f => {
       const d = valorDe(f.properties.estacion);
-      return {fillColor: d ? colorDe(d.clase).c : '#9aa5a0', fillOpacity: estado.op, color: '#14231c', weight: 1.2, opacity: 0.6};
+      const base = {fillColor: d ? colorDe(d.clase).c : '#9aa5a0', fillOpacity: estado.op, color: '#14231c', weight: 1.2, opacity: 0.6};
+      return f.properties.modelo ? Object.assign(base, {dashArray: '5 4', weight: 1.6}) : base;
     };
     const capaZonas = L.geoJSON(zonas, {style: estiloZona, onEachFeature: (f, layer) => {
       layer.bindTooltip(() => textoFWI(f.properties.estacion), {sticky: true});
@@ -519,7 +528,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
     function popup(e){
       const inf = INFO[e.nombre], d = valorDe(e.nombre);
-      let h = '<b>'+e.nombre+'</b> ('+inf.codigo+', '+inf.alt+' m)<br>';
+      let h = '<b>'+e.nombre+'</b> ('+(inf.modelo ? 'eredua, estaziorik gabe' : inf.codigo)+', '+inf.alt+' m)<br>';
+      if (inf.modelo) h += '<i>🖥️ Open-Meteo ereduaren estimazioa, tokiko estaziorik gabe</i><br>';
       if (!d) return h+'Daturik ez '+fmtFecha(estado.fecha)+'(e)an.';
       if (d.prev) h += '<i>Iragarpena '+(d.k === 0 ? '(gaurko kalkulua) ' : '')+'· ohiko tartea '+fmt(d.min,0)+'–'+fmt(d.max,0)+'</i><br>';
       h += '<span style="display:inline-block;margin:4px 0;padding:1px 10px;border-radius:999px;font-weight:700;background:'+colorDe(d.clase).c+';color:'+colorDe(d.clase).fg+'">FWI '+fmt(d.fwi)+' · '+claseEuMin(d.clase)+'</span><br>';
@@ -530,10 +540,11 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       if (d.calentando) h += '<br>† balioak oraindik berotzen';
       return h;
     }
-    function iconoPin(d){
+    function iconoPin(d, esModelo){
       if (!d) return L.divIcon({className: 'pin-wrap', html: '<div class="pin sin">s/d</div>', iconSize: [0,0]});
+      d = Object.assign({}, d, {modeloEst: esModelo});
       const c = colorDe(d.clase);
-      return L.divIcon({className: 'pin-wrap', html: '<div class="pin'+(d.prev ? ' prev' : '')+'" style="background:'+c.c+';color:'+c.fg+'">'+fmt(d.fwi)+'</div>', iconSize: [0,0]});
+      return L.divIcon({className: 'pin-wrap', html: '<div class="pin'+(d.prev ? ' prev' : '')+(d.modeloEst ? ' eredua' : '')+'" style="background:'+c.c+';color:'+c.fg+'">'+fmt(d.fwi)+(d.modeloEst?' 🖥️':'')+'</div>', iconSize: [0,0]});
     }
 
     // ---- gainazal jarraitua (IDW), kontornora moztutako sareta batean
@@ -597,7 +608,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     function pintar(){
       $('#mapaFecha').value = estado.fecha;
       capaZonas.setStyle(estiloZona);
-      pins.forEach((m, i) => m.setIcon(iconoPin(valorDe(est[i].nombre))));
+      pins.forEach((m, i) => m.setIcon(iconoPin(valorDe(est[i].nombre), INFO[est[i].nombre].modelo)));
       if (estado.modo === 'idw'){
         pintarIDW();
         if (mapa.hasLayer(capaZonas)) mapa.removeLayer(capaZonas);
