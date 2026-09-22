@@ -19,6 +19,11 @@
       "sensor": "G4AS",
       "tipo": "measuresForWater",
       "medida": "precipitation"
+    },
+    "direccion": {
+      "sensor": "Y024",
+      "tipo": "measuresForWind",
+      "medida": "mean_direction"
     }
   },
   "C017": {
@@ -41,6 +46,11 @@
       "sensor": "G4DB",
       "tipo": "measuresForWater",
       "medida": "precipitation"
+    },
+    "direccion": {
+      "sensor": "Y008",
+      "tipo": "measuresForWind",
+      "medida": "mean_direction"
     }
   },
   "C058": {
@@ -63,6 +73,11 @@
       "sensor": "G460",
       "tipo": "measuresForWater",
       "medida": "precipitation"
+    },
+    "direccion": {
+      "sensor": "Y0BE",
+      "tipo": "measuresForWind",
+      "medida": "mean_direction"
     }
   },
   "C026": {
@@ -85,6 +100,11 @@
       "sensor": "G4B3",
       "tipo": "measuresForWater",
       "medida": "precipitation"
+    },
+    "direccion": {
+      "sensor": "Y0DB",
+      "tipo": "measuresForWind",
+      "medida": "mean_direction"
     }
   },
   "C028": {
@@ -107,6 +127,11 @@
       "sensor": "G4AF",
       "tipo": "measuresForWater",
       "medida": "precipitation"
+    },
+    "direccion": {
+      "sensor": "Y0R8",
+      "tipo": "measuresForWind",
+      "medida": "mean_direction"
     }
   }
 }
