@@ -42,6 +42,12 @@ except ImportError:      # la previsión es opcional
     pv = None
 
 ZONA = ZoneInfo("Europe/Madrid")
+
+
+def hora_solar(fecha):
+    """Hora civil aproximada del mediodía solar en Gipuzkoa (~2° O): 13:00 en invierno, 14:00 en
+    verano (el desfase real es de unos 8 minutos, despreciable a la resolución horaria de los datos)."""
+    return 14 if datetime(fecha.year, fecha.month, fecha.day, 12, tzinfo=ZONA).dst() else 13
 HISTORIAL = Path("datos/historial.csv")
 SENSORES = Path("datos/sensores.json")
 SALIDA = Path("docs/data/fwi.json")
@@ -501,7 +507,8 @@ def main() -> int:
     p.add_argument("--emisor", default="panel-fwi")
     p.add_argument("--hasta", default=None)
     p.add_argument("--desde", default=None)
-    p.add_argument("--hora", type=int, default=12)
+    p.add_argument("--hora", type=int, default=None,
+                   help="Hora del dato (por defecto, la del mediodía solar: 13 en invierno, 14 en verano)")
     p.add_argument("--max-dias", type=int, default=45, help="Tope de días a recuperar hacia atrás")
     p.add_argument("--dias-json", type=int, default=DIAS_JSON, help="Días recientes que se publican en la web")
     p.add_argument("--sin-prevision", action="store_true", help="No calcula la previsión a 0-3 días")
@@ -515,13 +522,15 @@ def main() -> int:
         print("Falta el email (--email o variable EUSKALMET_EMAIL).")
         return 1
     ahora = datetime.now(ZONA)
+    hora = a.hora if a.hora is not None else hora_solar(ahora.date())
     if a.hasta:
         dia_fin = date.fromisoformat(a.hasta)
     else:
-        # el dato de las 12:00 (tramo 12:00-12:09) está disponible poco después de las 12:10
-        limite = ahora.replace(hour=a.hora, minute=20, second=0, microsecond=0)
+        # el dato del mediodía solar (tramo HH:00-HH:09) está disponible poco después de HH:10
+        limite = ahora.replace(hour=hora, minute=20, second=0, microsecond=0)
         dia_fin = ahora.date() if ahora >= limite else ahora.date() - timedelta(days=1)
     primera = date.fromisoformat(a.desde) if a.desde else dia_fin
+    print(f"Hora del dato: {hora:02d}:00 ({'verano' if hora == 14 else 'invierno'}, mediodía solar aproximado).")
 
     try:
         ew.crear_token(a.clave, a.email, a.emisor)  # solo para validar la clave pronto
@@ -555,15 +564,15 @@ def main() -> int:
     # ningún día nuevo (caso habitual día a día) no habría ocasión de intentarlo. Se prueba aquí una vez
     # por ejecución para cada estación a la que todavía le falte, sin depender de si hay días pendientes.
     for nombre, cod in ew.ESTACIONES.items():
-        if ew.intentar_direccion(cli, alm, sensores, cod, dia_fin - timedelta(days=1), a.hora):
+        if ew.intentar_direccion(cli, alm, sensores, cod, dia_fin - timedelta(days=1), hora):
             if "direccion" not in sensores_inicio.get(cod, {}):
                 print(f"{nombre}: sensor de dirección del viento encontrado ({sensores[cod]['direccion']['sensor']}).")
-    nuevas = descargar(cli, sensores, datos, dia_fin, primera, a.hora, a.max_dias, alm, limite)
-    nuevas += descargar_mutriku(datos, dia_fin, a.hora)
+    nuevas = descargar(cli, sensores, datos, dia_fin, primera, hora, a.max_dias, alm, limite)
+    nuevas += descargar_mutriku(datos, dia_fin, hora)
     if sensores != sensores_inicio:
         SENSORES.write_text(json.dumps(sensores, ensure_ascii=False, indent=2), encoding="utf-8")
-    previsor = None if a.sin_prevision else crear_previsor(alm, sensores, a.hora)
-    escribir(datos, (a.ffmc, a.dmc, a.dc), a.hora, ahora, a.dias_json, previsor)
+    previsor = None if a.sin_prevision else crear_previsor(alm, sensores, hora)
+    escribir(datos, (a.ffmc, a.dmc, a.dc), hora, ahora, a.dias_json, previsor)
     print(f"\nListo: {nuevas} filas nuevas, {cli.llamadas} llamadas a la API. "
           f"Escrito {SALIDA} y {HISTORIAL}.")
     return 0
