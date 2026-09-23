@@ -241,5 +241,22 @@
       "tipo": "measuresForWind",
       "medida": "mean_direction"
     }
+  },
+  "Altzola": {
+    "temperatura": {
+      "sensor": "R0SB",
+      "tipo": "measuresForAir",
+      "medida": "temperature"
+    },
+    "humedad": {
+      "sensor": "R0SB",
+      "tipo": "measuresForAir",
+      "medida": "humidity"
+    },
+    "lluvia": {
+      "sensor": "G4RC",
+      "tipo": "measuresForWater",
+      "medida": "precipitation"
+    }
   }
 }
