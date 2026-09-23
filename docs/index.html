@@ -36,6 +36,8 @@ section{margin-bottom:22px}
 .chip.viento{background:var(--wind-bg);color:var(--wind)}
 .chip.eredua{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
 .st.eredua{border-style:dashed}
+.chip.resumen{background:transparent;border:1px solid var(--accent);color:var(--accent)}
+.st.resumen{background:var(--field);border-color:var(--accent);border-width:2px}
 
 .stations{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
 .st{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-height:150px}
@@ -106,7 +108,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 <main>
   <header>
     <h1>FWI panela: Gipuzkoako suteen arriskua</h1>
-    <p class="lede">Suteen arrisku meteorologikoa (Fire Weather Index) Zegaman, Bidanian, Miramonen, Berastegin, Arrasaten, Zarautzen (Inurritzako euri-datuekin), Ordizian, Zizurkilen eta Pasaian (azken hau, itsasoko plataforma), Euskalmeten eguerdiko datuekin egunero kalkulatua, eta Mutrikun, kostaldeko hutsunea betetzeko, estaziorik ez dagoenez Open-Meteo ereduaren estimazioarekin (🖥️ eredua markatuta).</p>
+    <p class="lede">Suteen arrisku meteorologikoa (Fire Weather Index) Zegaman, Bidanian, Miramonen, Berastegin, Arrasaten, Zarautzen (Inurritzako euri-datuekin), Ordizian, Zizurkilen, Pasaian (itsasoko plataforma) eta Altzolan (haizea Open-Meteo ereduarekin), Euskalmeten datuekin egunero kalkulatua, eta Mutrikun, kostaldeko hutsunea betetzeko, estaziorik ez dagoenez Open-Meteo ereduaren estimazioarekin (🖥️ eredua markatuta).</p>
     <p class="upd" id="upd">Datuak kargatzen…</p>
   </header>
 
@@ -173,6 +175,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       <li><b>Haize-abisua.</b> Hego laurdeneko haizeak (S, SE, SO) sute-ohiko probabilitatea handitu egiten du FWI berdinarekin. Gipuzkoako 2010-2025eko EGIF su-erregistroarekin egindako azterketa batek biderkatzaile hurbil bat kalibratu du FWI mailaren arabera. Ez da FWIa aldatzen: aparteko abisu informatibo bat da, kasu gutxitan oinarritua, eta ez du ordezkatzen FWI zenbaki nagusia.</li>
       <li><b>ISI.</b> Hedapen-abiadura hasierakoa adierazten du (erregai fin lehorra + haizea, ez du hezetasun sakona kontuan hartzen). EGIF erregistroarekin egindako azterketan FWIa bezain ondo edo hobeto bereizten ditu egun arriskutsuak, batez ere erregai finaren araberako suteetan.</li>
       <li><b>Mapa.</b> Eragin-eremuek Gipuzkoako puntu bakoitzari hurbilen duen estazioaren FWIa esleitzen diote (Thiessen poligonoak). Gainazal jarraituak bost balioak interpolatzen ditu alderantzizko distantziaren arabera haztatuta. Bost estaziorekin eta erliebe hain aldakorrarekin, orientazio orokorra da, ez mendi bakoitzean neurtutako balioa; landaredia eta arrisku egiturazkoaren geruzek interpretatzen laguntzen dute.</li>
+      <li><b>Gipuzkoa (batez bestekoa).</b> Ez da estazio bat, laburpen bat baizik: puntu guztien balioen batez besteko haztatua, bakoitzaren eragin-eremuaren azaleraren arabera (mapako Thiessen poligonoen azalera bera). Haizea ez da sartzen batez bestekoan, norabide bat batez besteratzeak fisikoki zentzurik ez duelako. Estazio berri bat martxan jarri aurreko egunetan (adibidez, Zarautz 2024 aurretik), lurraldearen zati batekin baino ez da kalkulatzen; % 30etik behera geratzen bada, egun hori ez da erakusten.</li>
       <li><b>Zarautz.</b> Bi estazio errealen konbinazioa da: tenperatura, hezetasuna, haizea eta norabidea Zarautzeko estaziotik (C064), eta euria Inurritzakotik (C086), udalerri berekoa, Zarautzek ez baitu euri-neurgailurik. Bi neurketa dira, ez eredu bat.</li>
       <li><b>Mutriku.</b> Ez dauka estazio fisikorik martxan; Open-Meteo ereduaren estimazioa erabiltzen du zuzenean, 2010etik aurrerako historikoarekin (ERA5 datu-basea). Beste bost estazioek bezala kalkulatzen da, baina bertan tokiko neurketarik ez dagoenez, ez dago zuzentzeko edo egiaztatzeko biderik: iragarpenaren ziurgabetasun bera du datu "erreala" ere.</li>
       <li><b>Latitudea.</b> Eguneko iraupen-faktoreak 46° N inguruko latitudeetarako kalibratuta daude, Euskadikoen antzekoak.</li>
@@ -204,7 +207,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const CLASE_EU = {'Muy bajo':'Oso baxua','Bajo':'Baxua','Moderado':'Ertaina','Alto':'Handia','Muy alto':'Oso handia','Extremo':'Muturrekoa'};
   const colorDe = n => COLORES[n] || {c:'#888', fg:'#fff'};
   const claseEu = n => CLASE_EU[n] || n;
-  const fmt = (x,dec=1) => Number(x).toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  const fmt = (x,dec=1) => x == null ? '—' : Number(x).toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec});
   const esISO = s => /^\d{4}-\d{2}-\d{2}$/.test(s);
   const fecha = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
   // Euskarazko data laburrak/luzeak, nabigatzailearen Intl euskara-euskarriaren mende egon gabe
@@ -272,15 +275,19 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const linPrev = p1 ? `<span class="st-prev">Iragarpena ${fmtFecha(p1.fecha)}: <b>${fmt(p1.fwi)}</b> (${fmt(p1.min,0)}–${fmt(p1.max,0)})</span>` : '';
       const extra = u.calentando ? '<span class="st-date">† berotzen: fidagarritasun gutxikoa</span>'
                   : (u.pct != null ? `<span class="st-date">Hilabeteko ${u.pct}. pertzentila</span>` : '');
-      const linViento = `<span class="st-date">Haizea: ${fmt(u.W)} km/h${u.dir!=null?' ('+sector8(u.dir)+')':''}</span>`;
+      const notaCobertura = (est.resumen && u.cobertura != null && u.cobertura < 100)
+                           ? `<span class="st-date">Gipuzkoako % ${u.cobertura}ekin kalkulatua</span>` : '';
+      const linViento = u.W != null ? `<span class="st-date">Haizea: ${fmt(u.W)} km/h${u.dir!=null?' ('+sector8(u.dir)+')':''}</span>` : '';
       const linDatos = `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
-      return `<button class="st${est.modelo?' eredua':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
+      const insigniaResumen = est.resumen ? '<span class="chip resumen">📐 Gipuzkoako batez bestekoa</span>' : '';
+      return `<button class="st${est.modelo?' eredua':''}${est.resumen?' resumen':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
         <span class="st-name">${est.nombre}</span>
         <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span><span class="st-isi">ISI ${fmt(u.isi)} · DC ${fmt(u.dc)}</span></span>
         <span class="chip" style="background:${col.c};color:${col.fg}">${claseEu(u.clase)}</span>
-        ${insigniaEredua}
+        ${insigniaEredua}${insigniaResumen}
         <span class="st-date${viejo?' viejo':''}">${esISO(u.fecha)?fmtFecha(u.fecha):''}${viejo?' · datu berri gabe':''}</span>
         ${extra}
+        ${notaCobertura}
         ${linDatos}
         ${linViento}
         ${chipViento(u)}
