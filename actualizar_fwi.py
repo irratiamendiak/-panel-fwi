@@ -44,6 +44,10 @@ try:
     import zarautz as zr
 except ImportError:      # el punto híbrido Zarautz + Inurritza es opcional
     zr = None
+try:
+    import altzola as az
+except ImportError:      # el punto híbrido Altzola + viento de Open-Meteo es opcional
+    az = None
 
 ZONA = ZoneInfo("Europe/Madrid")
 
@@ -70,13 +74,25 @@ COORD = {   # nombre: (latitud, longitud, altitud)
     "Ordizia": (43.0547, -2.1783, 153),
     "Zizurkil": (43.1992, -2.0742, 115),
     "Pasaia": (43.3380, -1.9250, 0),     # plataforma en la bocana de la bahía, no en tierra
+    "Altzola": (43.2365, -2.4002, 30),   # C078 (temperatura/humedad/lluvia) + viento de Open-Meteo
 }
 # Puntos sin sensor real detrás: el dato "de hoy" también es una estimación de modelo (Open-Meteo),
 # sin nada local con que corregirla ni contrastarla, a diferencia de las estaciones de Euskalmet.
 MODELO_ESTACIONES = {"Mutriku"}
 # Estaciones reales pero que combinan dos sensores distintos de Euskalmet (ver el módulo zarautz.py).
 NOTAS_ESTACIONES = {"Zarautz": "Puntu honetako euria Inurritzako estaziotik (C086) hartzen da, udalerri "
-                                "berean: Zarautzek (C064) ez du euri-neurgailurik."}
+                                "berean: Zarautzek (C064) ez du euri-neurgailurik.",
+                     "Gipuzkoa": "Ez da estazio bat: puntu guztien batez besteko haztatua da, bakoitzaren "
+                                 "eragin-eremuaren azaleraren arabera (mapako Thiessen poligonoak). "
+                                 "Haizea ez da batez besteratzen (norabide bat batez besteratzeak ez du zentzurik)."}
+if az is not None:
+    NOTAS_ESTACIONES[az.NOMBRE] = az.NOTA
+# nombre -> código Euskalmet de los puntos híbridos (para el JSON y para mezclar la lluvia ya medida)
+CODIGO_HIBRIDO = {}
+if zr is not None:
+    CODIGO_HIBRIDO[zr.NOMBRE] = zr.ESTACION
+if az is not None:
+    CODIGO_HIBRIDO[az.NOMBRE] = az.ESTACION
 IDENTIDAD = {"T": ("id", 0), "H": ("id", 0), "W": ("id", 0)}   # sin corrección: no hay estación con la que calibrarla
 DIAS_JSON = 400      # días recientes que se publican en la web
 # Multiplicador aproximado de la tasa de incendios con viento del cuadrante sur, calibrado con el
@@ -234,6 +250,58 @@ def cascada(filas, inicial, estado=None):
     return salida
 
 
+ZONAS = Path("docs/data/zonas.geojson")
+
+
+def cargar_pesos():
+    """{nombre: área en km2 de su zona de influencia}, o {} si aún no se ha generado el mapa."""
+    if not ZONAS.exists():
+        return {}
+    try:
+        datos = json.loads(ZONAS.read_text(encoding="utf-8"))
+        return {f["properties"]["estacion"]: f["properties"]["area_km2"] for f in datos["features"]}
+    except (ValueError, KeyError, OSError):
+        return {}
+
+
+def media_ponderada(cascadas, pesos, cobertura_minima=0.30):
+    """Serie diaria 'Gipuzkoa': cada variable, ponderada por el área de la zona de cada estación
+    (docs/data/zonas.geojson), usando solo los días y estaciones con código fiable (sin calentar).
+    No incluye viento (no tiene sentido promediar una dirección entre estaciones): las tarjetas y
+    la tabla simplemente no lo muestran para este punto. Si un día no llega a la cobertura mínima
+    del territorio (por ejemplo, en 2010-2023, antes de que existieran varias de estas estaciones),
+    ese día no se calcula."""
+    total = sum(pesos.get(n, 0) for n in cascadas if n in pesos)
+    if not total:
+        return []
+    por_fecha = {}
+    for nombre, filas in cascadas.items():
+        peso = pesos.get(nombre)
+        if not peso:
+            continue
+        for d in filas:
+            if d["calentando"]:
+                continue
+            por_fecha.setdefault(d["fecha"], {})[nombre] = d
+    VARS = ("T", "H", "R", "ffmc", "dmc", "dc", "isi", "bui", "fwi")
+    salida = []
+    for fecha in sorted(por_fecha):
+        dias = por_fecha[fecha]
+        peso_dia = sum(pesos[n] for n in dias)
+        if peso_dia < total * cobertura_minima:
+            continue
+        prom = {v: sum(pesos[n] * dias[n][v] for n in dias) / peso_dia for v in VARS}
+        salida.append({
+            "fecha": fecha, "T": round(prom["T"], 1), "H": round(prom["H"], 1), "R": round(prom["R"], 1),
+            "W": None, "dir": None, "mult_viento": None,
+            "ffmc": round(prom["ffmc"], 1), "dmc": round(prom["dmc"], 1), "dc": round(prom["dc"], 1),
+            "isi": round(prom["isi"], 1), "bui": round(prom["bui"], 1), "fwi": round(prom["fwi"], 1),
+            "clase": clase(prom["fwi"]), "hueco": False, "calentando": False,
+            "cobertura": round(100 * peso_dia / total),
+        })
+    return salida
+
+
 def referencia(cascadas):
     """(estación, mes) -> lista ordenada de FWI históricos, sin los días de calentamiento."""
     ref = {}
@@ -258,6 +326,7 @@ def rango_percentil(v, x):
 # ---------------------------------------------------------------- histórico
 def leer_historial():
     datos = {n: {} for n in list(ew.ESTACIONES) + list(NOTAS_ESTACIONES) + list(MODELO_ESTACIONES)}
+    # (NOTAS_ESTACIONES ya incluye Zarautz y, si está disponible, Altzola)
     if HISTORIAL.exists():
         with open(HISTORIAL, newline="", encoding="utf-8") as f:
             for r in csv.DictReader(f):
@@ -410,6 +479,43 @@ def descargar_zarautz(cli, alm, sensores, datos, dia_fin, hora, max_dias):
     return nuevas
 
 
+def descargar_altzola(cli, alm, sensores, datos, dia_fin, hora, max_dias):
+    """Rellena los días que falten de Altzola: C078 (temperatura/humedad/lluvia) + viento de
+    Open-Meteo en sus coordenadas (ver altzola.py)."""
+    if az is None or pv is None:
+        return 0
+    nombre = az.NOMBRE
+    existentes = datos.setdefault(nombre, {})
+    sens = sensores.setdefault(nombre, {})
+    if not az.asegurar_sensores(cli, sens, dia_fin):
+        print(f"{nombre}: sensores incompletos (Altzola C078), se omite esta ejecución.")
+        return 0
+    desde = date.fromisoformat(max(existentes)) + timedelta(days=1) if existentes else dia_fin - timedelta(days=max_dias)
+    desde = max(desde, dia_fin - timedelta(days=max_dias))
+    faltan = [desde + timedelta(days=k) for k in range((dia_fin - desde).days + 1)
+              if (desde + timedelta(days=k)).isoformat() not in existentes]
+    if not faltan:
+        return 0
+    try:
+        tabla = pv.descargar_horario(*az.COORD)
+    except RuntimeError as e:
+        print(f"{nombre}: no se ha podido descargar el viento de Open-Meteo ({type(e).__name__}: {str(e)[:150]})")
+        return 0
+    nuevas = 0
+    for dia in faltan:
+        e = pv.entradas_dia(tabla, dia, hora)
+        viento = (e[2], e[3]) if e else None
+        fila, motivo = az.leer_dia(cli, alm, sens, dia, hora, viento)
+        if fila:
+            existentes[fila["fecha"]] = fila
+            nuevas += 1
+            print(f"{dia} {nombre}: T={fila['temperatura']} HR={fila['humedad']} "
+                  f"viento={fila['viento']} km/h (Open-Meteo) lluvia={fila['lluvia']} mm dir={fila['direccion']}")
+        else:
+            print(f"{dia} {nombre}: {motivo}")
+    return nuevas
+
+
 def crear_previsor(alm, sensores, hora):
     """Devuelve una función que calcula la previsión a 0-3 días de cada estación (o None si no está disponible)."""
     if pv is None:
@@ -440,8 +546,14 @@ def crear_previsor(alm, sensores, hora):
                 T, H, W = pv.corregir(corr.get(f"{nombre}|{min(3, max(0, j))}", IDENTIDAD), T, H, W)
                 medidas = 0
                 cod_est = ew.ESTACIONES.get(nombre)
-                cod_lluvia = cod_est or (zr.ESTACION_LLUVIA if (zr and nombre == zr.NOMBRE) else None)
-                sens_lluvia = sensores.get(cod_est) if cod_est else sensores.get(nombre)
+                if cod_est:
+                    cod_lluvia, sens_lluvia = cod_est, sensores.get(cod_est)
+                elif zr and nombre == zr.NOMBRE:      # Zarautz: la lluvia es de Inurritza (otra estación)
+                    cod_lluvia, sens_lluvia = zr.ESTACION_LLUVIA, sensores.get(nombre)
+                elif nombre in CODIGO_HIBRIDO:         # Altzola: la lluvia es de la misma estación que T/HR
+                    cod_lluvia, sens_lluvia = CODIGO_HIBRIDO[nombre], sensores.get(nombre)
+                else:                                  # Mutriku u otro punto sin estación real: no hay nada que mezclar
+                    cod_lluvia, sens_lluvia = None, None
                 if j == 0 and cod_lluvia and sens_lluvia and alm.cli.errores_conexion == 0 and alm.cli.limite_agotado < 2:   # hoy, antes de las 12:00: la lluvia ya caída se toma de la estación
                     try:
                         P, medidas = lluvia_con_observada(alm, cod_lluvia, sens_lluvia, horas)
@@ -491,6 +603,14 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
         w.writerow(CAMPOS)
         w.writerows(filas_csv)
 
+    # Gipuzkoa: media ponderada por área de todas las estaciones (después de escribir el CSV:
+    # no es un dato medido, no debe mezclarse con las filas reales del histórico).
+    pesos = cargar_pesos()
+    orden_json = orden
+    if pesos:
+        cascadas["Gipuzkoa"] = media_ponderada(cascadas, pesos)
+        orden_json = ["Gipuzkoa"] + orden
+
     ref = referencia(cascadas)
     clim = {}
     for (nombre, mes), v in ref.items():
@@ -519,14 +639,15 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
             previsiones = None
 
     estaciones = []
-    for nombre in orden:
+    for nombre in orden_json:
         recientes = cascadas[nombre][-dias_json:]
         for d in recientes:
             v = ref.get((nombre, int(d["fecha"][5:7])))
             d["pct"] = rango_percentil(v, d["fwi"]) if (v and len(v) >= 30 and not d["calentando"]) else None
-        codigo = ew.ESTACIONES.get(nombre) or (zr.ESTACION if (zr and nombre == "Zarautz") else None)
+        codigo = ew.ESTACIONES.get(nombre) or CODIGO_HIBRIDO.get(nombre)
         estaciones.append({"nombre": nombre, "codigo": codigo, "n_total": len(cascadas[nombre]),
                            "modelo": nombre in MODELO_ESTACIONES, "nota": NOTAS_ESTACIONES.get(nombre),
+                           "resumen": nombre == "Gipuzkoa",
                            "dias": recientes, "prevision": (previsiones or {}).get(nombre, [])})
 
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
@@ -612,6 +733,7 @@ def main() -> int:
     nuevas = descargar(cli, sensores, datos, dia_fin, primera, hora, a.max_dias, alm, limite)
     nuevas += descargar_mutriku(datos, dia_fin, hora)
     nuevas += descargar_zarautz(cli, alm, sensores, datos, dia_fin, hora, a.max_dias)
+    nuevas += descargar_altzola(cli, alm, sensores, datos, dia_fin, hora, a.max_dias)
     if sensores != sensores_inicio:
         SENSORES.write_text(json.dumps(sensores, ensure_ascii=False, indent=2), encoding="utf-8")
     previsor = None if a.sin_prevision else crear_previsor(alm, sensores, hora)

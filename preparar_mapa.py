@@ -27,6 +27,7 @@ ESTACIONES = {
     "Ordizia":   ("C043", 43.0547000, -2.178300, 153),
     "Zizurkil":  ("C029", 43.1992000, -2.074200, 115),
     "Pasaia":    ("B096", 43.3380000, -1.925000, 0),    # plataforma, no estación de tierra
+    "Altzola":   ("C078", 43.2365000, -2.400200, 30),   # + viento de Open-Meteo
 }
 MODELO_ESTACIONES = {"Mutriku"}
 TOL = 40.0      # tolerancia de simplificación (m)
@@ -78,6 +79,7 @@ def main() -> int:
     for n in nombres:
         xi, yi = utm[n]
         partes = []
+        area_km2 = 0.0
         for anillo in contorno:
             poly = anillo[:-1]
             for m in nombres:
@@ -89,8 +91,10 @@ def main() -> int:
                 if not poly: break
             if len(poly) >= 3 and abs(st.area_anillo(poly + [poly[0]])) > 5000:
                 partes.append([orientar(a_lonlat(poly + [poly[0]]))])
+                area_km2 += abs(st.area_anillo(poly + [poly[0]])) / 1e6
         cod, lat, lon, alt = ESTACIONES[n]
-        feats.append({"type": "Feature", "properties": {"estacion": n, "codigo": cod, "lat": lat, "lon": lon, "alt": alt, "modelo": n in MODELO_ESTACIONES},
+        feats.append({"type": "Feature", "properties": {"estacion": n, "codigo": cod, "lat": lat, "lon": lon, "alt": alt,
+                                                         "modelo": n in MODELO_ESTACIONES, "area_km2": round(area_km2, 1)},
                       "geometry": {"type": "MultiPolygon", "coordinates": partes}})
     json.dump({"type": "FeatureCollection", "features": feats}, open("docs/data/zonas.geojson", "w"), separators=(",", ":"))
 
