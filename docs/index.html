@@ -126,8 +126,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     <div class="card">
       <div class="mapa-ctrl">
         <div class="seg" role="group" aria-label="Mapa mota">
-          <button type="button" data-modo="zonas" aria-pressed="true">Eragin-eremuak</button>
-          <button type="button" data-modo="idw" aria-pressed="false">Gainazal jarraitua</button>
+          <button type="button" data-modo="idw" aria-pressed="true">Gainazal jarraitua</button>
+          <button type="button" data-modo="zonas" aria-pressed="false">Eragin-eremuak</button>
         </div>
         <label>Eguna <input type="date" id="mapaFecha"></label>
         <button type="button" class="ghost mini" id="mapaPrev" aria-label="Aurreko eguna">‹</button>
@@ -504,7 +504,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     });
     if (fMax < fMin){ $('#mapaNota').textContent = 'Oraindik ez dago mapan erakusteko kalkulatutako egunik.'; return; }
     if (fReal === '0000-00-00') fReal = fMax;
-    const estado = {fecha: fReal, modo: 'zonas', op: 0.65};
+    const estado = {fecha: fReal, modo: 'idw', op: 0.65};
 
     // ---- oinarrizko mapa eta geruzak
     const mapa = L.map('mapa', {minZoom: 8, maxZoom: 17}).fitBounds([[42.88,-2.66],[43.42,-1.70]]);
