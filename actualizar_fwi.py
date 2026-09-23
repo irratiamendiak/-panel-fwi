@@ -87,6 +87,9 @@ NOTAS_ESTACIONES = {"Zarautz": "Puntu honetako euria Inurritzako estaziotik (C08
                                  "Haizea ez da batez besteratzen (norabide bat batez besteratzeak ez du zentzurik)."}
 if az is not None:
     NOTAS_ESTACIONES[az.NOMBRE] = az.NOTA
+# "Gipuzkoa" tiene nota (arriba), pero no es una estación real: no cuenta para el histórico ni
+# para la lista de estaciones que se recorre en cada ejecución (eso lo decide media_ponderada()).
+NOMBRES_EXTRA = set(NOTAS_ESTACIONES) - {"Gipuzkoa"}
 # nombre -> código Euskalmet de los puntos híbridos (para el JSON y para mezclar la lluvia ya medida)
 CODIGO_HIBRIDO = {}
 if zr is not None:
@@ -325,7 +328,7 @@ def rango_percentil(v, x):
 
 # ---------------------------------------------------------------- histórico
 def leer_historial():
-    datos = {n: {} for n in list(ew.ESTACIONES) + list(NOTAS_ESTACIONES) + list(MODELO_ESTACIONES)}
+    datos = {n: {} for n in list(ew.ESTACIONES) + list(NOMBRES_EXTRA) + list(MODELO_ESTACIONES)}
     # (NOTAS_ESTACIONES ya incluye Zarautz y, si está disponible, Altzola)
     if HISTORIAL.exists():
         with open(HISTORIAL, newline="", encoding="utf-8") as f:
@@ -586,7 +589,7 @@ def crear_previsor(alm, sensores, hora):
 
 
 def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
-    orden = list(ew.ESTACIONES) + list(NOTAS_ESTACIONES) + list(MODELO_ESTACIONES)
+    orden = list(ew.ESTACIONES) + list(NOMBRES_EXTRA) + list(MODELO_ESTACIONES)
     filas_csv = []
     cascadas, estados = {}, {}
     for nombre in orden:
@@ -606,10 +609,10 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
     # Gipuzkoa: media ponderada por área de todas las estaciones (después de escribir el CSV:
     # no es un dato medido, no debe mezclarse con las filas reales del histórico).
     pesos = cargar_pesos()
-    orden_json = orden
+    orden_json = sorted(orden)   # estaciones en orden alfabético en la web
     if pesos:
         cascadas["Gipuzkoa"] = media_ponderada(cascadas, pesos)
-        orden_json = ["Gipuzkoa"] + orden
+        orden_json = ["Gipuzkoa"] + orden_json   # Gipuzkoa siempre la primera, delante del alfabeto
 
     ref = referencia(cascadas)
     clim = {}
