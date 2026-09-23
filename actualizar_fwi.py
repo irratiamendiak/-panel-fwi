@@ -67,6 +67,9 @@ COORD = {   # nombre: (latitud, longitud, altitud)
     "Zegama": (42.9588, -2.29852, 520),
     "Mutriku": (43.3072, -2.3850, 20),   # sin estación física: estimación de Open-Meteo (ver MODELO_ESTACIONES)
     "Zarautz": (43.2930, -2.1454, 10),   # C064 (temperatura/humedad/viento) + C086 Inurritza (lluvia)
+    "Ordizia": (43.0547, -2.1783, 153),
+    "Zizurkil": (43.1992, -2.0742, 115),
+    "Pasaia": (43.3380, -1.9250, 0),     # plataforma en la bocana de la bahía, no en tierra
 }
 # Puntos sin sensor real detrás: el dato "de hoy" también es una estimación de modelo (Open-Meteo),
 # sin nada local con que corregirla ni contrastarla, a diferencia de las estaciones de Euskalmet.

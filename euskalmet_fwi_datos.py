@@ -64,6 +64,9 @@ ESTACIONES = {
     "Bidania": "C058",
     "Berastegi": "C026",
     "Zegama": "C028",
+    "Ordizia": "C043",
+    "Zizurkil": "C029",
+    "Pasaia": "B096",   # plataforma océano-meteorológica, en la bocana de la bahía
 }
 
 # Variable -> "tipoDeMedida/medida" tal como aparece en el "key" de la API
