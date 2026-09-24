@@ -37,12 +37,13 @@ section{margin-bottom:22px}
 .chip.eredua{background:transparent;border:1px dashed var(--muted);color:var(--muted)}
 .st.eredua{border-style:dashed}
 .chip.resumen{background:transparent;border:1px solid var(--accent);color:var(--accent)}
-.st.resumen{background:var(--field);border-color:var(--accent);border-width:2px;grid-column:1/-1;padding:20px 22px}
-.st.resumen .st-val{font-size:56px}
-@media (min-width:800px){ .st.resumen .st-val{font-size:64px} }
-.st.resumen .st-name{font-size:19px}
+/* GIPUZKOA: mismo tamaño que las demás, solo destaca por el borde y el fondo */
+.st.resumen{background:var(--field);border-color:var(--accent);border-width:2px}
+.st.resumen .st-name{letter-spacing:.04em}
 
-.stations{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+/* Tarjetas en filas iguales; la última fila, si no está completa, queda centrada */
+.stations{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;--cols:2}
+.stations > .st{width:calc((100% - (var(--cols) - 1) * 10px) / var(--cols))}
 .st{all:unset;box-sizing:border-box;cursor:pointer;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-height:150px}
 .st:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .st[aria-pressed="true"]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
@@ -83,9 +84,9 @@ details li b{color:var(--ink);font-weight:600}
 .classes{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:12px 0 0;font-size:14px;align-items:center}
 .classes .chip{font-size:13px;padding:2px 10px;text-align:center}
 
-@media (min-width:560px){ .stations{grid-template-columns:repeat(3,1fr)} }
-@media (min-width:800px){ .stations{grid-template-columns:repeat(4,1fr)} .st-val{font-size:38px} }
-@media (min-width:1000px){ .stations{grid-template-columns:repeat(6,1fr)} }
+@media (min-width:560px){ .stations{--cols:3} }
+@media (min-width:800px){ .stations{--cols:4} .st-val{font-size:38px} }
+@media (min-width:1000px){ .stations{--cols:6} }
 
 /* Aurreikuspena */
 .rg{display:block;font-size:11px;font-weight:500;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
@@ -241,6 +242,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       $('#upd').innerHTML = '<span class="msg">Ezin izan dira datuak kargatu. Fitxategia diskotik zuzenean ireki baduzu, argitaratu web batean (adibidez GitHub Pages) data/fwi.json irakurri ahal izateko.</span>';
     });
 
+  // GIPUZKOA (la media ponderada) se escribe en mayúsculas para distinguirla de las estaciones
+  const nombreVis = est => est.resumen ? est.nombre.toUpperCase() : est.nombre;
   function ultimo(est){ return est.dias.length ? est.dias[est.dias.length-1] : null; }
 
   // Egun errealak eta iragarpena (jada neurtutako datak errepikatu gabe)
@@ -289,12 +292,14 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
                   : (u.pct != null ? `<span class="st-date">Hilabeteko ${u.pct}. pertzentila</span>` : '');
       const notaCobertura = (est.resumen && u.cobertura != null && u.cobertura < 100)
                            ? `<span class="st-date">Gipuzkoako % ${u.cobertura}ekin kalkulatua</span>` : '';
-      const linViento = u.W != null ? `<span class="st-date">Haizea: ${fmt(u.W)} km/h${u.dir!=null?' ('+sector8(u.dir)+')':''}</span>` : '';
-      const linDatos = `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
-      const insigniaResumen = est.resumen ? '<span class="chip resumen">📐 Gipuzkoako batez bestekoa</span>' : '';
+      const linViento = (!est.resumen && u.W != null) ? `<span class="st-date">Haizea: ${fmt(u.W)} km/h${u.dir!=null?' ('+sector8(u.dir)+')':''}</span>` : '';
+      // En GIPUZKOA solo el índice: promediar temperatura, humedad o lluvia entre estaciones no aporta.
+      const linDatos = est.resumen ? '' : `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
+      const insigniaResumen = '';
+      const linIsi = est.resumen ? '' : `<span class="st-isi">ISI ${fmt(u.isi)} · DC ${fmt(u.dc)}</span>`;
       return `<button class="st${est.modelo?' eredua':''}${est.resumen?' resumen':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
-        <span class="st-name">${est.nombre}${infoI}</span>
-        <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span><span class="st-isi">ISI ${fmt(u.isi)} · DC ${fmt(u.dc)}</span></span>
+        <span class="st-name">${nombreVis(est)}${infoI}</span>
+        <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span>${linIsi}</span>
         <span class="chip" style="background:${col.c};color:${col.fg}">${claseEu(u.clase)}</span>
         ${insigniaEredua}${insigniaResumen}
         <span class="st-date${viejo?' viejo':''}">${esISO(u.fecha)?fmtFecha(u.fecha):''}${viejo?' · datu berri gabe':''}</span>
@@ -302,7 +307,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         ${notaCobertura}
         ${linDatos}
         ${linViento}
-        ${chipViento(u)}
+        ${est.resumen ? '' : chipViento(u)}
         ${notaEst}
         ${linPrev}
         ${spark(est.dias)}
@@ -320,7 +325,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     let h = '<table style="min-width:420px"><thead><tr><th>Estazioa</th>' + fechas.map(f => `<th>${fmtFecha(f)}</th>`).join('') + '</tr></thead><tbody>';
     DATA.estaciones.forEach(e => {
       const m = new Map(conPrevision(e).prev.map(p => [p.fecha, p]));
-      h += `<tr><td>${e.nombre}</td>` + fechas.map(f => {
+      h += `<tr><td>${e.resumen ? '<b>'+nombreVis(e)+'</b>' : e.nombre}</td>` + fechas.map(f => {
         const p = m.get(f);
         if (!p) return '<td>—</td>';
         const c = colorDe(p.clase);
@@ -345,7 +350,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
   function detalle(){
     const est = DATA.estaciones[sel];
-    $('#detTitle').textContent = 'Xehetasuna: '+est.nombre+(est.codigo?' ('+est.codigo+')':'');
+    $('#detTitle').textContent = 'Xehetasuna: '+nombreVis(est)+(est.codigo?' ('+est.codigo+')':'');
     const dias = (todo ? est.dias : est.dias.slice(-DIAS_POR_DEFECTO)).concat(conPrevision(est).prev);
     grafico(dias);
     tabla(dias, est);
