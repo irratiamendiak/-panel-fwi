@@ -77,7 +77,8 @@ section{margin-bottom:22px}
 .inf-gip{min-width:130px;text-align:center;border-radius:10px;padding:8px 12px}
 .inf-gip .v{font-size:26pt;font-weight:800;line-height:1.1}
 .inf-mapa svg{width:auto;max-width:100%;height:auto;max-height:118mm;display:block;margin:0 auto}
-.inf,.inf table{break-inside:avoid}
+.inf table{break-inside:avoid}
+.inf-mapa.peq svg{max-height:90mm}
 .inf table{width:100%;border-collapse:collapse;margin-top:8px;font-size:9pt}
 .inf th,.inf td{border-bottom:1px solid #ccc;padding:3px 5px;text-align:right}
 .inf th:first-child,.inf td:first-child,.inf td.izena{text-align:left}
@@ -253,7 +254,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 <dialog id="dlgInf" aria-labelledby="dlgInfTit">
   <form method="dialog">
     <h3 id="dlgInfTit">Txostena (PDF)</h3>
-    <p class="nota">Aukeratu egun bat edo aldi bat. Data berak aukeratuz gero, egun horretako txostena ateratzen da; bestela, aldiko laburpena.</p>
+    <p class="nota">Aukeratu egun bat edo aldi bat. Data berak aukeratuz gero, egun horretako txostena ateratzen da; bestela, aldiko laburpena. Txostena hautatutako txartelarena da (GIPUZKOA hautatuta badago, lurralde osoarena).</p>
     <div class="dlg-fechas">
       <label>Nondik <input type="date" id="infDesde" min="2010-01-01" required></label>
       <label>Nora <input type="date" id="infHasta" min="2010-01-01" required></label>
@@ -500,7 +501,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   }
   // Mapa: gainazal jarraitua (alderantzizko distantziaren interpolazioa, panelaren mapa bezala), Gipuzkoaren kontornora moztua.
   // puntos: [{nombre, lat, lon, f (FWI edo null), modelo}]
-  function svgMapa(geo, puntos){
+  function svgMapa(geo, puntos, destacar){
     const todos = geo.contorno.features.flatMap(f => anillos(f.geometry)).flat();
     let x0 = 99, x1 = -99, y0 = 99, y1 = -99;
     todos.forEach(([x,y]) => { x0 = Math.min(x0,x); x1 = Math.max(x1,x); y0 = Math.min(y0,y); y1 = Math.max(y1,y); });
@@ -530,6 +531,13 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     if (pts.length) h += `<image href="${cv.toDataURL('image/png')}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none" clip-path="url(#${id})"/>`;
     else h += `<path d="${cont}" fill="#c9d0cc"/>`;
     h += `<path d="${cont}" fill="none" stroke="#14231c" stroke-width="1.6"/>`;
+    const zona = destacar ? geo.zonas.features.find(f => f.properties.estacion === destacar) : null;
+    if (zona){
+      // fuera de la zona de la estación, velo blanco; la zona, con borde grueso
+      const zc = camino(zona.geometry);
+      h += `<path d="M-6,-6H${W+6}V${H+6}H-6Z${zc}" fill="#fff" fill-opacity="0.6" fill-rule="evenodd" clip-path="url(#${id})"/>`+
+           `<path d="${zc}" fill="none" stroke="#14231c" stroke-width="3.2" stroke-linejoin="round"/>`;
+    }
     puntos.forEach(p => {
       if (p.lat == null || p.lon == null) return;
       const [cx, cy] = P([p.lon, p.lat]), col = p.f != null ? colorDe(claseDeFwi(p.f)) : {c:'#fff', fg:'#111'};
@@ -664,11 +672,104 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     </div>`;
   }
 
+  // --- estazio bakarreko txostenak (hautatutako txartela)
+  const estSel = () => DATA.estaciones[sel] || DATA.estaciones[0];
+  function notasEst(e, d){
+    const notas = [];
+    if (d){
+      if (d.prev) notas.push(d.k === 0 ? 'kalkulatua' : 'iragarpena');
+      if (d.calculado) notas.push('kalkulatua');
+      if (d.calentando) notas.push('balioak berotzen (fidagarritasun txikia)');
+    }
+    if (e.modelo) notas.push('Open-Meteo ereduaren estimazioa, ez estazio fisikoa');
+    if (e.nota) notas.push(e.nota);
+    return notas;
+  }
+  function klimaMes(e, f){
+    const c = ((DATA.climatologia || {})[e.nombre] || {})[String(fecha(f).getMonth()+1)];
+    return c ? `Hilabete honetako klimatologia (${c.n} egun): mediana ${fmt(c.p50)} · P75 ${fmt(c.p75)} · P90 ${fmt(c.p90)} · P98 ${fmt(c.p98)}` : '';
+  }
+  function htmlDiaEstacion(e, f, geo){
+    const valor = x => (f === fechaActual() && !FECHA) ? (hoyCalculado(x) || diaEst(x, f) || ultimo(x)) : diaEst(x, f);
+    const d = valor(e);
+    const porNombre = {}; DATA.estaciones.forEach(x => { porNombre[x.nombre] = valor(x); });
+    const col = d ? colorDe(d.clase) : {c:'#c9d0cc', fg:'#111'};
+    const fila = (t, v) => `<tr><td class="izena">${t}</td><td>${v}</td></tr>`;
+    let tabla = '';
+    if (d){
+      tabla += fila('Tenperatura', fmt(d.T)+' °C') + fila('Hezetasun erlatiboa', '% '+fmt(d.H,0)) +
+        fila('Haizea', fmt(d.W)+' km/h'+(d.dir != null ? ' ('+sector8(d.dir)+')' : '')) + fila('Euria (24 h)', fmt(d.R)+' mm');
+      [['FFMC','ffmc'],['DMC','dmc'],['DC','dc'],['ISI','isi'],['BUI','bui']].forEach(([t,k]) => { if (d[k] != null) tabla += fila(t, fmt(d[k])); });
+      tabla += fila('<b>FWI</b>', '<b>'+fmt(d.fwi)+'</b> '+pill(d.clase)) + fila('Hilabeteko pertzentila', d.pct != null ? d.pct+'.' : '—');
+      if (d.mult_viento > 1) tabla += fila('Hego haizearen abisua', 'arriskua ~×'+fmt(d.mult_viento,1));
+    }
+    const desde14 = masDias(f, -13), serie14 = Array.from({length: 14}, (_, k) => diaEst(e, masDias(desde14, k))).filter(x => x && !x.prev && x.fwi != null);
+    const graf = serie14.length ? graficoSerie(serie14, desde14, f) : null;
+    const notas = notasEst(e, d), klima = klimaMes(e, f);
+    return `<div class="inf">
+      <div class="inf-cab">
+        <div><h1>Suteen arrisku meteorologikoa — ${nombreVis(e)}</h1>
+          <p class="sub">FWI (Fire Weather Index) · <b>${fmtFechaLuzea(fecha(f))}</b>${f > fechaActual() ? ' · <b>IRAGARPENA</b>' : ''}${d && d.fecha && d.fecha !== f ? ' · azken datua: '+fmtFecha(d.fecha) : ''}</p></div>
+        <div class="inf-gip" style="background:${col.c};color:${col.fg}">${nombreVis(e).toUpperCase()}<div class="v">${d ? fmt(d.fwi) : '—'}</div>${d ? claseEu(d.clase) : 'daturik ez'}${d && d.pct != null ? '<br>'+d.pct+'. pertzentila' : ''}</div>
+      </div>
+      <div class="inf-mapa peq">${svgMapa(geo, puntosDe(geo, n => porNombre[n] ? porNombre[n].fwi : null), e.nombre)}</div>
+      ${leyendaInf()}
+      <table style="max-width:115mm">${tabla || '<tr><td>Egun horretan ez dago daturik.</td></tr>'}</table>
+      ${klima ? `<p class="pie">${klima}</p>` : ''}
+      ${graf ? `<h2>Azken 14 egunak</h2><div class="graf">${graf.svg}</div>` : ''}
+      ${notas.length ? `<p class="pie"><b>Oharrak:</b> ${notas.join(' · ')}</p>` : ''}
+      ${pieInf('Mapa: gainazal jarraitua (estazioen FWIen interpolazioa); marra lodiak estazio honen eragin-eremua mugatzen du.')}
+    </div>`;
+  }
+  function htmlPeriodoEstacion(e, desde, hasta, geo){
+    const fechas = []; for (let f = desde; f <= hasta; f = masDias(f, 1)) fechas.push(f);
+    const st = {}; DATA.estaciones.forEach(x => { st[x.nombre] = estadisticas(x, fechas); });
+    const x = st[e.nombre];
+    const col = x ? colorDe(claseDeFwi(x.media)) : {c:'#c9d0cc', fg:'#111'};
+    let porClase = '', porMes = '', top = '';
+    if (x){
+      porClase = '<table><thead><tr>'+UMBRALES.map(([nm]) => `<th><span class="pill" style="background:${colorDe(nm).c};color:${colorDe(nm).fg};font-size:7.5pt">${claseEu(nm)}</span></th>`).join('')+'<th>≥ Handia</th></tr></thead><tbody><tr>'+
+        UMBRALES.map(([nm]) => `<td>${x.cuenta[nm]} <span style="color:#555">(% ${Math.round(100*x.cuenta[nm]/x.n)})</span></td>`).join('')+`<td><b>${x.altos} (% ${Math.round(100*x.altos/x.n)})</b></td></tr></tbody></table>`;
+      const meses = {};
+      x.serie.forEach(d => { (meses[d.fecha.slice(0,7)] = meses[d.fecha.slice(0,7)] || []).push(d); });
+      const claves = Object.keys(meses).sort();
+      if (claves.length > 1 && claves.length <= 24){
+        porMes = '<h2>Hilabetez hilabete</h2><table><thead><tr><th>Hilabetea</th><th>Egunak</th><th>Batez b.</th><th>Maila</th><th>Maximoa</th><th>≥ Handia</th></tr></thead><tbody>'+
+          claves.map(k => { const v = meses[k], m = v.reduce((a,b) => a+b.fwi, 0)/v.length, mx = v.reduce((a,b) => b.fwi > a.fwi ? b : a), al = v.filter(d => ['Alto','Muy alto','Extremo'].includes(d.clase || claseDeFwi(d.fwi))).length;
+            return `<tr><td class="izena">${k.slice(0,4)} ${HIL_GEN[+k.slice(5)-1].replace(/aren$|ren$|en$/,'a')}</td><td>${v.length}</td><td><b>${fmt(m)}</b></td><td>${pill(claseDeFwi(m))}</td><td>${fmt(mx.fwi)} <span style="color:#555">(${fmtFecha(mx.fecha)})</span></td><td>${al}</td></tr>`; }).join('')+'</tbody></table>';
+      }
+      const mejores = x.serie.slice().sort((a,b) => b.fwi - a.fwi).slice(0, 5);
+      top = '<h2>FWI altuena izan zuten egunak</h2><table><thead><tr><th>Eguna</th><th>FWI</th><th>Maila</th><th>Pertz.</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria mm</th></tr></thead><tbody>'+
+        mejores.map(d => `<tr><td class="izena">${fmtLargo(d.fecha)}</td><td><b>${fmt(d.fwi)}</b></td><td>${pill(d.clase || claseDeFwi(d.fwi))}</td><td>${d.pct != null ? d.pct : '—'}</td><td>${e.resumen ? '' : fmt(d.T)}</td><td>${e.resumen ? '' : fmt(d.H,0)}</td><td>${e.resumen || d.W == null ? '' : fmt(d.W)+(d.dir!=null?' '+sector8(d.dir):'')}</td><td>${e.resumen ? '' : fmt(d.R)}</td></tr>`).join('')+'</tbody></table>';
+    }
+    const graf = x ? graficoSerie(x.serie, desde, hasta) : null;
+    const notas = notasEst(e, null);
+    if (x && x.n < fechas.length) notas.unshift((fechas.length - x.n)+' egun daturik gabe aldian');
+    if (x && x.cal) notas.unshift(x.cal+' egun balioak berotzen');
+    return `<div class="inf">
+      <div class="inf-cab">
+        <div><h1>Suteen arrisku meteorologikoa — ${nombreVis(e)}</h1>
+          <p class="sub">Aldiko txostena · <b>${fmtLargo(desde)} – ${fmtLargo(hasta)}</b> (${fechas.length} egun${x ? ', '+x.n+' datuekin' : ''})</p></div>
+        <div class="inf-gip" style="background:${col.c};color:${col.fg}">${nombreVis(e).toUpperCase()}<div class="v">${x ? fmt(x.media) : '—'}</div>${x ? 'batez bestekoa<br>max. '+fmt(x.max.fwi)+' ('+fmtFecha(x.max.fecha)+')' : 'daturik ez'}</div>
+      </div>
+      <h2>Aldiko FWI batez bestekoa</h2>
+      <div class="inf-mapa peq">${svgMapa(geo, puntosDe(geo, n => st[n] ? st[n].media : null), e.nombre)}</div>
+      ${leyendaInf()}
+      ${graf ? `<h2>${nombreVis(e)}: ${graf.etiqueta}</h2><div class="graf">${graf.svg}</div>` : ''}
+      ${x ? '<h2>Egunak mailaka</h2>'+porClase : '<p>Aldi horretan ez dago daturik.</p>'}
+      ${porMes}${top}
+      ${notas.length ? `<p class="pie"><b>Oharrak:</b> ${notas.join(' · ')}</p>` : ''}
+      ${pieInf('Mapa: aldiko FWI batez bestekoaren gainazal jarraitua; marra lodiak estazio honen eragin-eremua mugatzen du. Neurtutako egunak soilik (iragarpenik gabe).')}
+    </div>`;
+  }
+
   function abrirInforme(){
     const f = FECHA || fechaActual();
     $('#infDesde').value = f; $('#infHasta').value = f;
     $('#infDesde').max = fechaMaxima(); $('#infHasta').max = fechaMaxima();
     $('#infAviso').hidden = true;
+    const e = estSel();
+    $('#dlgInfTit').textContent = 'Txostena (PDF): ' + (e.resumen ? 'Gipuzkoa osoa' : nombreVis(e));
     const dlg = $('#dlgInf');
     if (dlg.showModal) dlg.showModal(); else informe(f, f);
   }
@@ -680,8 +781,10 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     n.hidden = false; n.textContent = 'Txostena prestatzen…';
     Promise.all([necesita && !HIST ? cargarHist() : Promise.resolve(), cargarGeo()]).then(([, geo]) => {
       n.hidden = true;
-      if (periodo) imprimir(htmlPeriodo(desde, hasta, geo), 'FWI_Gipuzkoa_'+desde+'_'+hasta);
-      else imprimir(htmlDia(desde, geo), 'FWI_Gipuzkoa_'+desde);
+      const e = estSel(), general = e.resumen;
+      const nom = 'FWI_' + (general ? 'Gipuzkoa' : e.nombre) + '_' + desde + (periodo ? '_'+hasta : '');
+      if (general) imprimir(periodo ? htmlPeriodo(desde, hasta, geo) : htmlDia(desde, geo), nom);
+      else imprimir(periodo ? htmlPeriodoEstacion(e, desde, hasta, geo) : htmlDiaEstacion(e, desde, geo), nom);
     }).catch(() => { n.hidden = false; n.textContent = 'Ezin izan da txostena prestatu. Saiatu berriro.'; });
   }
 
