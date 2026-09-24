@@ -68,6 +68,7 @@ CAMPOS = ["fecha", "estacion", "temperatura", "humedad", "viento", "lluvia", "di
 DMC_L = [6.5, 7.5, 9.0, 12.8, 13.9, 13.9, 12.4, 10.9, 9.4, 8.0, 7.0, 6.0]
 DC_L = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, 6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
 MARGEN_PUBLICACION = timedelta(minutes=100)   # tras la hora del dato, tiempo que se espera a que se publique todo
+REGISTRO_PREVISIONES = Path("datos/previsiones.csv")
 HUECO_MAX = 14       # días: con un hueco mayor entre dos lecturas se reinician los códigos
 CALENTAMIENTO = 45   # días tras un reinicio (o el inicio del histórico) con valores aún poco fiables
 COORD = {   # nombre: (latitud, longitud, altitud)
@@ -654,6 +655,37 @@ def crear_previsor(alm, sensores, hora):
     return previsor
 
 
+def registrar_previsiones(previsiones, ahora):
+    """Guarda en datos/previsiones.csv la previsión emitida hoy, para poder compararla después con el
+    FWI medido (fiabilidad a 1, 2 y 3 días). Una fila por (día de emisión, estación, día previsto):
+    si el proceso corre varias veces el mismo día, se queda la última previsión de ese día."""
+    campos = ["emitida", "estacion", "fecha", "adelanto", "fwi", "min", "max", "clase", "calculado"]
+    hoy = ahora.date()
+    filas = {}
+    if REGISTRO_PREVISIONES.exists():
+        with open(REGISTRO_PREVISIONES, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                filas[(r["emitida"], r["estacion"], r["fecha"])] = r
+    for nombre, lista in previsiones.items():
+        for pr in lista:
+            try:
+                adelanto = (date.fromisoformat(pr["fecha"]) - hoy).days
+            except (KeyError, ValueError):
+                continue
+            if adelanto < 0:
+                continue
+            filas[(hoy.isoformat(), nombre, pr["fecha"])] = {
+                "emitida": hoy.isoformat(), "estacion": nombre, "fecha": pr["fecha"], "adelanto": adelanto,
+                "fwi": pr.get("fwi"), "min": pr.get("min"), "max": pr.get("max"), "clase": pr.get("clase"),
+                "calculado": 1 if pr.get("k") == 0 else 0}
+    REGISTRO_PREVISIONES.parent.mkdir(parents=True, exist_ok=True)
+    with open(REGISTRO_PREVISIONES, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=campos, lineterminator="\n")
+        w.writeheader()
+        for k in sorted(filas):
+            w.writerow({c: filas[k].get(c, "") for c in campos})
+
+
 def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
     orden = list(ew.ESTACIONES) + list(NOMBRES_EXTRA) + list(MODELO_ESTACIONES)
     filas_csv = []
@@ -700,6 +732,11 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
             info = {"estado": "error", "mensaje": str(e)[:200]}
     if previsiones is not None and pesos:
         previsiones["Gipuzkoa"] = prevision_media(previsiones, pesos, ref)
+    if previsiones is not None and info and info.get("estado") == "ok":
+        try:
+            registrar_previsiones(previsiones, ahora)
+        except (OSError, ValueError) as e:   # el registro nunca debe impedir publicar el panel
+            print("No se ha podido guardar el registro de previsiones:", e)
     if previsiones is None and SALIDA.exists():
         try:
             viejo = json.loads(SALIDA.read_text(encoding="utf-8"))
