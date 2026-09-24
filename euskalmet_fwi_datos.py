@@ -33,6 +33,9 @@ Uso (PowerShell, en la carpeta del script):
 Varios días seguidos (útil para arrancar la cascada de FFMC, DMC y DC):
   py euskalmet_fwi_datos.py --clave privateKey.pem --email TU_EMAIL --fecha 2026-09-01 --hasta 2026-09-19
 
+Solo algunas estaciones (p. ej. para bajar el histórico de las que se añadieron después):
+  py euskalmet_fwi_datos.py --clave privateKey.pem --email TU_EMAIL --fecha 2024-07-23 --hasta 2026-09-23 --estaciones Pasaia,Zizurkil,Ordizia
+
 Opciones útiles:
   --hora 13        hora del dato (por defecto 12; ver nota sobre hora solar)
   --viento-kmh     si la API ya da el viento en km/h (por defecto se asume m/s y se convierte)
@@ -600,6 +603,8 @@ def main() -> int:
     p.add_argument("--muestra", action="store_true", help="Imprime una respuesta cruda y termina")
     p.add_argument("--sensores", default="sensores.json", metavar="FICHERO",
                    help="Fichero donde se guardan los sensores detectados (por defecto sensores.json)")
+    p.add_argument("--estaciones", default=None, metavar="LISTA",
+                   help="Solo estas estaciones, separadas por comas (p. ej. Pasaia,Zizurkil,Ordizia)")
     p.add_argument("--completar", default=None, metavar="CSV",
                    help="CSV de una ejecución anterior: solo descarga lo que le falte y guarda uno completo")
     a = p.parse_args()
@@ -612,6 +617,15 @@ def main() -> int:
     if fin < ini:
         print("--hasta no puede ser anterior a --fecha")
         return 1
+    estaciones = dict(ESTACIONES)
+    if a.estaciones:
+        pedidas = [x.strip().lower() for x in a.estaciones.split(",") if x.strip()]
+        estaciones = {n: c for n, c in ESTACIONES.items() if n.lower() in pedidas}
+        desconocidas = set(pedidas) - {n.lower() for n in estaciones}
+        if desconocidas:
+            print("Estaciones desconocidas:", ", ".join(sorted(desconocidas)),
+                  "| disponibles:", ", ".join(ESTACIONES))
+            return 1
 
     try:
         token = crear_token(a.clave, a.email, a.emisor)
@@ -679,7 +693,7 @@ def main() -> int:
     dia = ini
     while dia <= fin:
         print(f"\n--- {dia} ({a.hora:02d}:00) ---")
-        for nombre, cod in ESTACIONES.items():
+        for nombre, cod in estaciones.items():
             if (dia.isoformat(), nombre) in previas:
                 filas.append(previas[(dia.isoformat(), nombre)])
                 continue
@@ -689,7 +703,8 @@ def main() -> int:
                 omitidos.append((dia, nombre, "sin sensores detectados"))
                 continue
             try:
-                datos, n, motivo = obtener_dia(cli, alm, sensores, cod, dia, a.hora)
+                datos, n, motivo = obtener_dia(cli, alm, sensores, cod, dia, a.hora,
+                                               rellenar_huecos=se_puede_rellenar(dia))
             except RuntimeError as e:
                 print(f"{nombre}: {e}")
                 omitidos.append((dia, nombre, str(e)[:120]))
