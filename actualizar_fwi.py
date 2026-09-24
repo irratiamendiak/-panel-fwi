@@ -289,7 +289,7 @@ def media_ponderada(cascadas, pesos, cobertura_minima=0.30):
             if d["calentando"]:
                 continue
             por_fecha.setdefault(d["fecha"], {})[nombre] = d
-    VARS = ("T", "H", "R", "ffmc", "dmc", "dc", "isi", "bui", "fwi")
+    VARS = ("ffmc", "dmc", "dc", "isi", "bui", "fwi")   # solo índices: no se promedian T, HR ni lluvia
     salida = []
     for fecha in sorted(por_fecha):
         dias = por_fecha[fecha]
@@ -298,12 +298,48 @@ def media_ponderada(cascadas, pesos, cobertura_minima=0.30):
             continue
         prom = {v: sum(pesos[n] * dias[n][v] for n in dias) / peso_dia for v in VARS}
         salida.append({
-            "fecha": fecha, "T": round(prom["T"], 1), "H": round(prom["H"], 1), "R": round(prom["R"], 1),
+            "fecha": fecha, "T": None, "H": None, "R": None,
             "W": None, "dir": None, "mult_viento": None,
             "ffmc": round(prom["ffmc"], 1), "dmc": round(prom["dmc"], 1), "dc": round(prom["dc"], 1),
             "isi": round(prom["isi"], 1), "bui": round(prom["bui"], 1), "fwi": round(prom["fwi"], 1),
             "clase": clase(prom["fwi"]), "hueco": False, "calentando": False,
             "cobertura": round(100 * peso_dia / total),
+        })
+    return salida
+
+
+def prevision_media(previsiones, pesos, ref, cobertura_minima=0.30):
+    """Previsión de GIPUZKOA: para cada día, media ponderada por área de la previsión de cada estación
+    (FWI, sus componentes y el tramo min-max), sin las estaciones que aún están calentando. Igual que
+    en media_ponderada(), solo índices: ni temperatura, ni humedad, ni lluvia, ni viento.
+    El tramo min-max es la media de los tramos de cada estación: orientativo."""
+    total = sum(p for n, p in pesos.items() if n != "Gipuzkoa")
+    if not total:
+        return []
+    por_fecha = {}
+    for nombre, filas in previsiones.items():
+        peso = pesos.get(nombre)
+        if not peso or nombre == "Gipuzkoa":
+            continue
+        for f in filas:
+            if not f.get("calentando"):
+                por_fecha.setdefault(f["fecha"], {})[nombre] = f
+    VARS = ("ffmc", "dmc", "dc", "isi", "bui", "fwi", "min", "max")
+    salida = []
+    for fecha in sorted(por_fecha):
+        dias = por_fecha[fecha]
+        peso_dia = sum(pesos[n] for n in dias)
+        if peso_dia < total * cobertura_minima:
+            continue
+        prom = {v: sum(pesos[n] * dias[n][v] for n in dias) / peso_dia for v in VARS}
+        fwi = prom["fwi"]
+        v = ref.get(("Gipuzkoa", int(fecha[5:7])))
+        salida.append({
+            "fecha": fecha, "k": min(d["k"] for d in dias.values()),
+            "T": None, "H": None, "W": None, "R": None, "dir": None, "sur": None, "mult_viento": None,
+            **{k: round(prom[k], 1) for k in VARS},
+            "clase": clase(fwi), "pct": rango_percentil(v, fwi) if (v and len(v) >= 30) else None,
+            "calentando": False, "lluvia_medida_h": None, "cobertura": round(100 * peso_dia / total),
         })
     return salida
 
@@ -647,6 +683,8 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
         except Exception as e:     # un fallo de la previsión no debe impedir la actualización diaria
             print(f"Previsión no disponible: {type(e).__name__}: {str(e)[:200]}")
             info = {"estado": "error", "mensaje": str(e)[:200]}
+    if previsiones is not None and pesos:
+        previsiones["Gipuzkoa"] = prevision_media(previsiones, pesos, ref)
     if previsiones is None and SALIDA.exists():
         try:
             viejo = json.loads(SALIDA.read_text(encoding="utf-8"))
