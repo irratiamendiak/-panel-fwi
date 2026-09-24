@@ -64754,6 +64754,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-01,Zegama,26.2,56.0,8.3,0.0,15.0,
 2026-09-01,Ordizia,24.3,60.1,12.7,0.0,22.0,
 2026-09-01,Zizurkil,22.4,67.0,6.0,0.0,308.0,
+2026-09-01,Pasaia,21.9,68.9,16.2,0.0,13.0,
 2026-09-01,Zarautz,21.7,75.7,10.3,0.0,351.0,
 2026-09-01,Altzola,22.0,75.5,10.3,0.0,16.0,viento:Open-Meteo
 2026-09-01,Mutriku,22.0,75.0,10.3,0.0,16.0,
@@ -64764,6 +64765,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-02,Zegama,27.4,57.3,10.4,0.0,25.0,
 2026-09-02,Ordizia,26.8,57.0,14.9,0.0,48.0,
 2026-09-02,Zizurkil,24.7,57.5,9.1,0.0,31.0,
+2026-09-02,Pasaia,21.6,63.6,12.2,0.0,10.0,
 2026-09-02,Zarautz,21.9,71.7,8.6,0.0,0.0,
 2026-09-02,Altzola,23.9,64.0,11.6,0.0,30.0,viento:Open-Meteo
 2026-09-02,Mutriku,24.7,64.0,11.6,0.0,30.0,
@@ -64774,6 +64776,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-03,Zegama,32.3,24.3,7.1,0.0,19.0,
 2026-09-03,Ordizia,31.7,27.4,10.7,0.0,15.0,
 2026-09-03,Zizurkil,27.9,52.2,9.3,0.0,41.0,
+2026-09-03,Pasaia,22.5,67.8,10.8,0.0,24.0,
 2026-09-03,Zarautz,22.5,75.1,12.3,0.0,8.0,
 2026-09-03,Altzola,26.7,60.9,10.2,0.0,44.0,viento:Open-Meteo
 2026-09-03,Mutriku,27.4,54.0,10.2,0.0,44.0,
@@ -64784,6 +64787,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-04,Zegama,36.9,19.7,8.0,0.0,9.0,
 2026-09-04,Ordizia,35.2,29.0,12.1,0.0,18.0,
 2026-09-04,Zizurkil,30.4,42.5,11.4,0.0,28.0,
+2026-09-04,Pasaia,23.4,74.4,7.9,0.0,300.0,
 2026-09-04,Zarautz,23.3,85.0,13.1,0.0,337.0,
 2026-09-04,Altzola,27.4,67.5,10.1,0.0,17.0,viento:Open-Meteo
 2026-09-04,Mutriku,32.1,49.0,10.1,0.0,17.0,
@@ -64794,6 +64798,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-05,Zegama,31.6,43.0,5.9,0.0,19.0,
 2026-09-05,Ordizia,30.3,53.4,10.0,0.0,39.0,
 2026-09-05,Zizurkil,27.7,61.0,9.3,0.0,50.0,
+2026-09-05,Pasaia,23.0,72.7,6.5,0.0,24.0,
 2026-09-05,Zarautz,23.2,80.9,10.0,0.0,9.0,
 2026-09-05,Altzola,26.3,70.1,10.0,0.0,41.0,viento:Open-Meteo
 2026-09-05,Mutriku,26.6,63.0,10.0,0.0,41.0,
@@ -64804,6 +64809,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-06,Zegama,32.1,32.4,13.8,0.0,339.0,
 2026-09-06,Ordizia,32.8,33.9,12.1,0.0,40.0,
 2026-09-06,Zizurkil,31.2,31.2,11.8,0.0,327.0,
+2026-09-06,Pasaia,27.1,48.3,19.4,0.0,240.0,
 2026-09-06,Zarautz,27.4,53.9,12.0,0.0,302.0,
 2026-09-06,Altzola,33.2,29.7,10.4,0.0,350.0,viento:Open-Meteo
 2026-09-06,Mutriku,35.1,42.0,10.4,0.0,350.0,
@@ -64814,6 +64820,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-07,Zegama,27.7,55.4,6.8,1.1,13.0,
 2026-09-07,Ordizia,28.3,55.0,9.7,0.0,79.0,lluvia:Bidania
 2026-09-07,Zizurkil,23.6,73.3,12.8,0.1,333.0,
+2026-09-07,Pasaia,22.4,74.2,12.2,0.0,13.0,
 2026-09-07,Zarautz,22.1,83.2,7.6,0.0,4.0,
 2026-09-07,Altzola,24.0,77.5,7.4,0.0,22.0,viento:Open-Meteo
 2026-09-07,Mutriku,25.1,72.0,7.4,0.7,22.0,
@@ -64822,8 +64829,9 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-08,Bidania,22.7,48.9,11.4,0.1,300.0,
 2026-09-08,Berastegi,25.0,41.3,10.2,0.0,335.0,
 2026-09-08,Zegama,25.8,26.2,15.2,0.0,328.0,
-2026-09-08,Ordizia,28.2,50,8.4,0.1,326,lluvia:Bidania; temperatura:Open-Meteo; humedad:Open-Meteo; viento:Open-Meteo
+2026-09-08,Ordizia,28.2,50.0,8.4,0.1,326.0,lluvia:Bidania; temperatura:Open-Meteo; humedad:Open-Meteo; viento:Open-Meteo
 2026-09-08,Zizurkil,26.7,47.0,13.7,0.0,329.0,
+2026-09-08,Pasaia,22.8,64.2,5.0,0.0,329.0,
 2026-09-08,Zarautz,23.5,70.3,10.3,0.1,356.0,
 2026-09-08,Altzola,26.2,59.0,9.0,0.0,357.0,viento:Open-Meteo
 2026-09-08,Mutriku,28.2,49.0,9.0,0.0,357.0,
@@ -64834,6 +64842,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-09,Zegama,17.1,57.0,14.6,11.5,2.0,
 2026-09-09,Ordizia,19.9,49.0,6.2,6.6,356.0,
 2026-09-09,Zizurkil,20.6,50.9,14.2,13.0,325.0,
+2026-09-09,Pasaia,19.7,66,18.4,2.99,354.0,humedad:Open-Meteo
 2026-09-09,Zarautz,18.8,64.0,11.4,13.0,211.0,lluvia:Zizurkil; humedad:Open-Meteo
 2026-09-09,Altzola,20.9,54.7,13.4,9.2,6.0,lluvia:Arrasate; viento:Open-Meteo
 2026-09-09,Mutriku,20.5,61.0,13.4,12.4,6.0,
@@ -64844,6 +64853,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-10,Zegama,21.8,42.2,4.1,0.0,19.0,lluvia:Ordizia
 2026-09-10,Ordizia,23.1,39.3,4.5,0.0,20.0,
 2026-09-10,Zizurkil,20.8,41.5,8.0,0.1,28.0,temperatura:Open-Meteo
+2026-09-10,Pasaia,19.8,47.2,13.0,0.0,13.0,
 2026-09-10,Zarautz,19.7,52.4,11.4,0.1,12.0,lluvia:Zizurkil
 2026-09-10,Altzola,22.1,49.2,9.6,0.0,37.0,lluvia:Arrasate; viento:Open-Meteo
 2026-09-10,Mutriku,21.9,48.0,9.6,0.8,37.0,
@@ -64854,6 +64864,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-11,Zegama,21.6,53.0,11.6,0.0,17.0,lluvia:Ordizia
 2026-09-11,Ordizia,22.6,50.1,6.9,0.0,40.0,
 2026-09-11,Zizurkil,22.3,49.7,7.3,0.0,4.0,
+2026-09-11,Pasaia,20.4,58.3,15.1,0.0,19.0,
 2026-09-11,Zarautz,20.1,65.8,13.9,0.0,10.0,lluvia:Zizurkil
 2026-09-11,Altzola,23.3,57.5,10.3,0.0,12.0,viento:Open-Meteo
 2026-09-11,Mutriku,21.9,61.0,10.3,0.0,12.0,
@@ -64864,6 +64875,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-12,Zegama,25.5,46.9,9.3,0.0,21.0,
 2026-09-12,Ordizia,26.0,48.3,9.7,0.0,51.0,
 2026-09-12,Zizurkil,23.9,55.9,8.2,0.0,5.0,
+2026-09-12,Pasaia,21.3,66.5,12.2,0.0,5.0,
 2026-09-12,Zarautz,20.8,72.6,10.2,0.0,356.0,
 2026-09-12,Altzola,23.1,62.8,12.3,0.0,35.0,viento:Open-Meteo
 2026-09-12,Mutriku,23.8,57.0,12.3,0.2,35.0,
@@ -64874,6 +64886,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-13,Zegama,28.8,34.0,5.8,0.0,13.0,
 2026-09-13,Ordizia,30.0,33.6,8.4,0.0,13.0,
 2026-09-13,Zizurkil,27.2,54.9,10.1,0.0,45.0,
+2026-09-13,Pasaia,22.0,73.3,10.1,0.0,343.0,
 2026-09-13,Zarautz,21.8,81.2,11.6,0.0,9.0,
 2026-09-13,Altzola,25.3,65.5,10.7,0.0,29.0,viento:Open-Meteo
 2026-09-13,Mutriku,26.6,59.0,10.7,0.0,29.0,
@@ -64884,6 +64897,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-14,Zegama,31.7,24.4,7.2,0.0,15.0,
 2026-09-14,Ordizia,32.6,26.0,9.2,0.0,33.0,
 2026-09-14,Zizurkil,29.4,43.4,10.1,0.0,50.0,
+2026-09-14,Pasaia,22.9,70.9,7.6,0.0,14.0,
 2026-09-14,Zarautz,22.1,81.1,13.3,0.0,7.0,
 2026-09-14,Altzola,28.3,49.5,10.6,0.0,30.0,viento:Open-Meteo
 2026-09-14,Mutriku,28.9,50.0,10.6,0.0,30.0,
@@ -64894,6 +64908,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-15,Zegama,27.1,44.7,8.9,0.0,353.0,
 2026-09-15,Ordizia,26.8,55.7,12.6,0.0,60.0,
 2026-09-15,Zizurkil,22.9,71.1,10.9,0.0,322.0,
+2026-09-15,Pasaia,22.3,76.6,35.3,0.0,280.0,
 2026-09-15,Zarautz,21.6,82.0,33.3,0.0,324.0,
 2026-09-15,Altzola,26.1,61.2,17.0,0.0,309.0,viento:Open-Meteo
 2026-09-15,Mutriku,27.1,57.0,17.0,0.0,309.0,
@@ -64901,9 +64916,10 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-16,Miramon,19.5,64.8,11.1,1.8,341.0,
 2026-09-16,Bidania,14.2,78.5,9.1,9.5,336.0,
 2026-09-16,Berastegi,17.5,72.1,13.7,6.0,317.0,
-2026-09-16,Zegama,16.4,75,14.3,3.6,4,temperatura:Open-Meteo; humedad:Open-Meteo; viento:Open-Meteo
+2026-09-16,Zegama,16.4,75.0,14.3,3.6,4.0,temperatura:Open-Meteo; humedad:Open-Meteo; viento:Open-Meteo
 2026-09-16,Ordizia,19.1,63.3,9.3,1.6,15.0,
 2026-09-16,Zizurkil,19.5,62.6,10.0,3.4,345.0,
+2026-09-16,Pasaia,19.8,56.3,14.4,0.83,8.0,
 2026-09-16,Zarautz,16.5,87.6,22.4,2.6,328.0,
 2026-09-16,Altzola,19.4,74.8,13.2,5.8,12.0,viento:Open-Meteo
 2026-09-16,Mutriku,20.3,72.0,13.2,7.5,12.0,
@@ -64914,6 +64930,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-17,Zegama,17.9,66.6,6.4,0.2,13.0,lluvia:Ordizia
 2026-09-17,Ordizia,18.9,65.3,5.6,0.2,45.0,
 2026-09-17,Zizurkil,20.1,65.8,3.2,1.1,285.0,
+2026-09-17,Pasaia,20.4,58.0,1.4,0.0,271.0,
 2026-09-17,Zarautz,20.4,60.1,10.0,1.4,329.0,
 2026-09-17,Altzola,20.9,59.0,10.4,1.4,342.0,viento:Open-Meteo
 2026-09-17,Mutriku,21.0,63.0,10.4,3.8,342.0,
@@ -64924,6 +64941,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-18,Zegama,15.8,99.4,6.6,1.7,25.0,
 2026-09-18,Ordizia,19.1,80.2,5.2,0.0,90.0,
 2026-09-18,Zizurkil,18.0,96.2,10.5,4.5,315.0,
+2026-09-18,Pasaia,19.5,74.5,18.0,0.15,283.0,
 2026-09-18,Zarautz,18.7,88.8,13.5,3.8,319.0,
 2026-09-18,Altzola,19.8,89.3,9.4,2.9,5.0,viento:Open-Meteo
 2026-09-18,Mutriku,18.4,88.0,9.4,1.2,5.0,
@@ -64934,6 +64952,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-19,Zegama,24.3,42.0,4.7,0.2,19.0,
 2026-09-19,Ordizia,26.6,35.9,8.9,0.0,28.0,
 2026-09-19,Zizurkil,22.3,59.1,10.6,0.5,43.0,
+2026-09-19,Pasaia,19.7,62.1,11.2,0.0,24.0,
 2026-09-19,Zarautz,19.2,70.3,14.0,0.4,13.0,
 2026-09-19,Altzola,21.7,63.9,10.7,0.0,42.0,viento:Open-Meteo
 2026-09-19,Mutriku,22.6,60.0,10.7,0.9,42.0,
@@ -64944,6 +64963,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-20,Zegama,26.0,49.9,7.9,0.0,24.0,
 2026-09-20,Ordizia,26.2,53.4,9.4,0.0,20.0,
 2026-09-20,Zizurkil,23.8,66.7,8.9,0.0,4.0,
+2026-09-20,Pasaia,21.5,73.3,8.3,0.0,330.0,
 2026-09-20,Zarautz,21.2,80.9,12.4,0.0,335.0,
 2026-09-20,Altzola,23.7,72.2,12.4,0.0,13.0,viento:Open-Meteo
 2026-09-20,Mutriku,24.4,69.0,12.4,0.0,13.0,
@@ -64954,6 +64974,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-21,Zegama,26.8,40.5,7.5,0.0,13.0,
 2026-09-21,Ordizia,27.4,42.9,8.2,0.0,16.0,
 2026-09-21,Zizurkil,25.6,52.5,6.4,0.0,29.0,
+2026-09-21,Pasaia,21.4,75.1,10.1,0.0,336.0,
 2026-09-21,Zarautz,21.3,83.5,14.3,0.0,351.0,
 2026-09-21,Altzola,25.7,48.7,11.3,0.0,14.0,viento:Open-Meteo
 2026-09-21,Mutriku,25.8,61.0,11.3,0.0,14.0,
@@ -64964,6 +64985,7 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-22,Zegama,25.5,41.7,15.9,0.0,42.0,
 2026-09-22,Ordizia,26.4,43.1,13.0,0.0,54.0,
 2026-09-22,Zizurkil,24.5,48.6,12.3,0.0,321.0,
+2026-09-22,Pasaia,20.8,60.7,9.4,0.0,351.0,
 2026-09-22,Zarautz,21.4,67.9,7.3,0.0,351.0,
 2026-09-22,Altzola,24.4,60.6,9.9,0.0,33.0,
 2026-09-22,Mutriku,25.7,52.0,11.4,0.0,7.0,
@@ -64973,6 +64995,8 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-23,Berastegi,25.8,32.3,12.5,0.0,291.0,
 2026-09-23,Zegama,27.9,30.7,8.0,0.0,28.0,
 2026-09-23,Ordizia,28.1,29.3,11.7,0.0,47.0,
+2026-09-23,Zizurkil,26.3,25.0,9.8,0.0,347.0,
+2026-09-23,Pasaia,21.5,65.4,7.6,0.0,11.0,
 2026-09-23,Zarautz,22.0,63.9,8.9,0.8,348.0,
 2026-09-23,Altzola,25.1,36.3,9.0,0.0,23.0,
 2026-09-23,Mutriku,26.9,42.0,11.7,0.0,20.0,
@@ -64981,6 +65005,8 @@ fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 2026-09-24,Bidania,30.7,26.1,8.3,0.0,318.0,
 2026-09-24,Berastegi,32.4,26.9,4.8,0.0,310.0,
 2026-09-24,Zegama,33.6,18.9,6.9,0.0,1.0,
+2026-09-24,Zizurkil,34.5,21.6,6.5,0.0,30.0,
+2026-09-24,Pasaia,24.4,58.4,5.8,0.0,301.0,
 2026-09-24,Zarautz,27.1,45.4,14.8,0.0,38.0,
 2026-09-24,Altzola,31.9,38.8,8.6,0.0,195.0,
 2026-09-24,Mutriku,25.5,58.0,3.5,0.0,24.0,
