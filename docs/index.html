@@ -53,6 +53,15 @@ section{margin-bottom:22px}
 .fechabar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px}
 .fechabar input{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
 .fechabar button[disabled]{opacity:.45;cursor:default}
+#dlgInf{border:1px solid var(--line);border-radius:14px;padding:18px 20px;background:var(--card);color:var(--ink);max-width:420px}
+#dlgInf::backdrop{background:rgba(0,0,0,.35)}
+#dlgInf h3{margin:0 0 6px}
+.dlg-fechas{display:flex;flex-wrap:wrap;gap:10px 16px;margin:10px 0}
+.dlg-fechas input{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink)}
+.dlg-bot{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+#infOk{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:6px 14px;font-weight:700;cursor:pointer}
+.inf .graf svg{width:100%;height:auto;display:block}
+.inf h2{font-size:11pt;margin:10px 0 2px}
 /* ---- informe imprimible (PDF) */
 #informe{display:none}
 @media print{
@@ -77,6 +86,8 @@ section{margin-bottom:22px}
 .inf .leg{display:flex;flex-wrap:wrap;gap:4px 10px;margin:8px 0 4px;font-size:8.5pt}
 .inf .leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 .inf .pie{font-size:8pt;color:#444;margin-top:6px}
+.inf td:last-child{font-size:8pt;white-space:normal;min-width:30mm}
+.inf td{white-space:nowrap}
 .info-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:6px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font:italic 700 12px/1 Georgia,serif;cursor:pointer;vertical-align:2px}
 .info-i:hover,.info-i[aria-expanded="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
 .info-i:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -239,6 +250,21 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   </details>
 </main>
 <div id="informe" hidden></div>
+<dialog id="dlgInf" aria-labelledby="dlgInfTit">
+  <form method="dialog">
+    <h3 id="dlgInfTit">Txostena (PDF)</h3>
+    <p class="nota">Aukeratu egun bat edo aldi bat. Data berak aukeratuz gero, egun horretako txostena ateratzen da; bestela, aldiko laburpena.</p>
+    <div class="dlg-fechas">
+      <label>Nondik <input type="date" id="infDesde" min="2010-01-01" required></label>
+      <label>Nora <input type="date" id="infHasta" min="2010-01-01" required></label>
+    </div>
+    <p class="nota" id="infAviso" hidden></p>
+    <div class="dlg-bot">
+      <button type="button" class="ghost mini" id="infCancel">Utzi</button>
+      <button type="button" class="mini" id="infOk">Sortu PDF</button>
+    </div>
+  </form>
+</dialog>
 
 <script>
 (function(){
@@ -330,7 +356,15 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     $('#fPrev').addEventListener('click', () => ponerFecha(masDias(FECHA || fechaActual(), -1)));
     $('#fNext').addEventListener('click', () => ponerFecha(masDias(FECHA || fechaActual(), 1)));
     $('#fHoy').addEventListener('click', () => ponerFecha(null));
-    $('#fPdf').addEventListener('click', informe);
+    $('#fPdf').addEventListener('click', abrirInforme);
+    $('#infCancel').addEventListener('click', () => $('#dlgInf').close());
+    $('#infOk').addEventListener('click', () => {
+      let a = $('#infDesde').value, b = $('#infHasta').value;
+      if (!esISO(a) || !esISO(b)){ const av = $('#infAviso'); av.hidden = false; av.textContent = 'Bi datak behar dira.'; return; }
+      if (a > b) [a, b] = [b, a];
+      $('#dlgInf').close();
+      informe(a, b);
+    });
   }
 
   fetch('data/fwi.json',{cache:'no-store'})
@@ -446,33 +480,62 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   }
 
   // ---- Txostena (PDF): nabigatzailearen inprimaketa, "Gorde PDF gisa" aukerarekin
+  const RAMPA_INF = [[0,[47,143,91]],[2.6,[47,143,91]],[8.2,[143,191,63]],[16.3,[240,197,59]],[29.6,[238,138,46]],[44,[217,56,43]],[56,[122,31,77]]];
+  function rampaInf(f){
+    if (f <= RAMPA_INF[0][0]) return RAMPA_INF[0][1];
+    for (let i = 1; i < RAMPA_INF.length; i++){
+      if (f <= RAMPA_INF[i][0]){
+        const [x0,c0] = RAMPA_INF[i-1], [x1,c1] = RAMPA_INF[i], t = (f-x0)/(x1-x0);
+        return [0,1,2].map(k => Math.round(c0[k] + t*(c1[k]-c0[k])));
+      }
+    }
+    return RAMPA_INF[RAMPA_INF.length-1][1];
+  }
+  const fmtLargo = s => { const d = fecha(s); return d.getFullYear()+'ko '+HIL_GEN[d.getMonth()]+' '+d.getDate()+'a'; };
   function anillos(geom){
     if (!geom) return [];
     if (geom.type === 'Polygon') return geom.coordinates;
     if (geom.type === 'MultiPolygon') return geom.coordinates.flat();
     return [];
   }
-  function svgMapa(geo, valorDe){
+  // Mapa: gainazal jarraitua (alderantzizko distantziaren interpolazioa, panelaren mapa bezala), Gipuzkoaren kontornora moztua.
+  // puntos: [{nombre, lat, lon, f (FWI edo null), modelo}]
+  function svgMapa(geo, puntos){
     const todos = geo.contorno.features.flatMap(f => anillos(f.geometry)).flat();
     let x0 = 99, x1 = -99, y0 = 99, y1 = -99;
     todos.forEach(([x,y]) => { x0 = Math.min(x0,x); x1 = Math.max(x1,x); y0 = Math.min(y0,y); y1 = Math.max(y1,y); });
     const kx = Math.cos((y0+y1)/2*Math.PI/180), W = 700, esc = W/((x1-x0)*kx), H = Math.round((y1-y0)*esc);
-    const P = ([x,y]) => ((x-x0)*kx*esc).toFixed(1)+','+((y1-y)*esc).toFixed(1);
-    const camino = g => anillos(g).map(a => 'M'+a.map(P).join('L')+'Z').join('');
-    let h = `<svg viewBox="-6 -6 ${W+12} ${H+12}" xmlns="http://www.w3.org/2000/svg">`;
-    geo.zonas.features.forEach(f => {
-      const d = valorDe(f.properties.estacion), c = d ? colorDe(d.clase).c : '#c9d0cc';
-      h += `<path d="${camino(f.geometry)}" fill="${c}" stroke="#fff" stroke-width="1"${f.properties.modelo?' stroke-dasharray="4 3"':''}/>`;
-    });
-    geo.contorno.features.forEach(f => { h += `<path d="${camino(f.geometry)}" fill="none" stroke="#14231c" stroke-width="1.6"/>`; });
-    geo.zonas.features.forEach(f => {
-      const pr = f.properties, d = valorDe(pr.estacion);
-      if (pr.lat == null || pr.lon == null) return;
-      const [cx, cy] = P([pr.lon, pr.lat]).split(',').map(Number), col = d ? colorDe(d.clase) : {c:'#fff', fg:'#111'};
-      const txt = d ? fmt(d.fwi) : 's/d';
-      h += `<g><rect x="${cx-22}" y="${cy-11}" width="44" height="18" rx="9" fill="${col.c}" stroke="#14231c" stroke-width="0.8"/>`+
-           `<text x="${cx}" y="${cy+2.5}" text-anchor="middle" font-size="11" font-weight="700" fill="${col.fg}">${txt}</text>`+
-           `<text x="${cx}" y="${cy+19}" text-anchor="middle" font-size="9" fill="#14231c" stroke="#fff" stroke-width="2.5" paint-order="stroke">${pr.estacion}</text></g>`;
+    const P = ([x,y]) => [(x-x0)*kx*esc, (y1-y)*esc];
+    const camino = g => anillos(g).map(a => 'M'+a.map(q => P(q).map(v => v.toFixed(1)).join(',')).join('L')+'Z').join('');
+    // raster IDW en km (mismo criterio que el mapa del panel)
+    const conDato = puntos.filter(p => p.f != null);
+    const GW = 350, GH = Math.round(GW*H/W), kmX = 111.32*kx, kmY = 110.57;
+    const cv = document.createElement('canvas'); cv.width = GW; cv.height = GH;
+    const ctx = cv.getContext('2d'), img = ctx.createImageData(GW, GH);
+    const pts = conDato.map(p => ({x: (p.lon-x0)*kmX, y: (p.lat-y0)*kmY, f: p.f}));
+    for (let r = 0; r < GH && pts.length; r++){
+      const lat = y1 - (r+0.5)/GH*(y1-y0), yk = (lat-y0)*kmY;
+      for (let c = 0; c < GW; c++){
+        const xk = ((c+0.5)/GW*(x1-x0))*kmX;
+        let sw = 0, sf = 0;
+        for (const q of pts){ const w = 1/((xk-q.x)**2 + (yk-q.y)**2 + 0.25); sw += w; sf += w*q.f; }
+        const col = rampaInf(sf/sw), i = 4*(r*GW+c);
+        img.data[i] = col[0]; img.data[i+1] = col[1]; img.data[i+2] = col[2]; img.data[i+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const id = 'clip' + Math.random().toString(36).slice(2, 8);
+    const cont = geo.contorno.features.map(f => camino(f.geometry)).join('');
+    let h = `<svg viewBox="-6 -6 ${W+12} ${H+12}" xmlns="http://www.w3.org/2000/svg"><defs><clipPath id="${id}"><path d="${cont}"/></clipPath></defs>`;
+    if (pts.length) h += `<image href="${cv.toDataURL('image/png')}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none" clip-path="url(#${id})"/>`;
+    else h += `<path d="${cont}" fill="#c9d0cc"/>`;
+    h += `<path d="${cont}" fill="none" stroke="#14231c" stroke-width="1.6"/>`;
+    puntos.forEach(p => {
+      if (p.lat == null || p.lon == null) return;
+      const [cx, cy] = P([p.lon, p.lat]), col = p.f != null ? colorDe(claseDeFwi(p.f)) : {c:'#fff', fg:'#111'};
+      h += `<g><rect x="${(cx-22).toFixed(1)}" y="${(cy-11).toFixed(1)}" width="44" height="18" rx="9" fill="${col.c}" stroke="#14231c" stroke-width="0.8"${p.modelo?' stroke-dasharray="3 2"':''}/>`+
+           `<text x="${cx.toFixed(1)}" y="${(cy+2.5).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="${col.fg}">${p.f != null ? fmt(p.f) : 's/d'}</text>`+
+           `<text x="${cx.toFixed(1)}" y="${(cy+19).toFixed(1)}" text-anchor="middle" font-size="9" fill="#14231c" stroke="#fff" stroke-width="2.5" paint-order="stroke">${p.nombre}</text></g>`;
     });
     return h + '</svg>';
   }
@@ -481,56 +544,144 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     const pedir = u => fetch(u).then(r => { if (!r.ok) throw new Error(u); return r.json(); });
     return Promise.all([pedir('data/zonas.geojson'), pedir('data/gipuzkoa.geojson')]).then(([zonas, contorno]) => ({zonas, contorno}));
   }
-  function informe(){
+  const puntosDe = (geo, valor) => geo.zonas.features.map(f => ({nombre: f.properties.estacion, lat: f.properties.lat, lon: f.properties.lon, modelo: !!f.properties.modelo, f: valor(f.properties.estacion)}));
+  const pill = cl => cl ? `<span class="pill" style="background:${colorDe(cl).c};color:${colorDe(cl).fg}">${claseEu(cl)}</span>` : '—';
+  const leyendaInf = () => '<div class="leg">'+UMBRALES.map(([nm]) => `<span><i style="background:${colorDe(nm).c}"></i>${claseEu(nm)}</span>`).join('')+'</div>';
+  function pieInf(extra){
+    const ahora = new Date();
+    return `<p class="pie">${extra} GIPUZKOA: estazioen FWIen batez besteko haztatua, eragin-eremuen azaleraren arabera. Pertzentila: hilabete bereko egun historikoekin alderatuta (2010etik). Eguzki-eguerdiko datuak (13:00 neguan, 14:00 udan). Datuak: Euskalmet / Open Data Euskadi; Mutriku eta iragarpenak: Open-Meteo.com (CC BY 4.0). Tresna orientagarria: ez ditu ordezkatzen abisu ofizialak.<br>Sortua: ${fmtFechaLuzea(ahora)}, ${fmtOrdua(ahora)} · ${location.host}${location.pathname}</p>`;
+  }
+  function imprimir(html, nombre){
+    $('#informe').innerHTML = html;
+    const titulo = document.title;
+    const limpiar = () => { document.body.classList.remove('imprimiendo'); document.title = titulo; window.removeEventListener('afterprint', limpiar); };
+    window.addEventListener('afterprint', limpiar);
+    document.body.classList.add('imprimiendo');
+    document.title = nombre;
+    setTimeout(() => { window.print(); setTimeout(limpiar, 1000); }, 50);
+  }
+
+  // --- egun bakarreko txostena
+  function htmlDia(f, geo){
+    const val = est => (f === fechaActual() && !FECHA) ? (hoyCalculado(est) || diaEst(est, f) || ultimo(est)) : diaEst(est, f);
+    const porNombre = {}; DATA.estaciones.forEach(e => { porNombre[e.nombre] = val(e); });
+    const gip = DATA.estaciones.find(e => e.resumen), dg = gip ? porNombre[gip.nombre] : null;
+    const esPrev = f > fechaActual();
+    let filas = '';
+    DATA.estaciones.forEach(e => {
+      const d = porNombre[e.nombre], notas = [], r = e.resumen;
+      if (!d) notas.push('daturik ez');
+      else {
+        if (d.fecha && d.fecha !== f) notas.push('datua: '+fmtFecha(d.fecha));
+        if (d.prev) notas.push(d.k === 0 ? 'kalkulatua' : 'iragarpena');
+        if (d.calculado) notas.push('kalkulatua');
+        if (d.calentando) notas.push('berotzen');
+        if (e.modelo) notas.push('eredua (Open-Meteo)');
+        if (r && d.cobertura != null && d.cobertura < 100) notas.push('lurraldearen % '+d.cobertura);
+      }
+      filas += `<tr><td class="izena">${r ? '<b>'+nombreVis(e)+'</b>' : e.nombre}</td><td><b>${d ? fmt(d.fwi) : '—'}</b></td><td>${d ? pill(d.clase) : '—'}</td>`+
+        `<td>${d && d.pct != null ? d.pct : '—'}</td><td>${r||!d ? '' : fmt(d.T)}</td><td>${r||!d ? '' : fmt(d.H,0)}</td>`+
+        `<td>${r||!d ? '' : fmt(d.W)+(d.dir!=null?' '+sector8(d.dir):'')}</td><td>${r||!d ? '' : fmt(d.R)}</td>`+
+        `<td>${d ? fmt(d.isi) : ''}</td><td>${r||!d ? '' : fmt(d.dc)}</td><td class="izena">${notas.join(', ')}</td></tr>`;
+    });
+    return `<div class="inf">
+      <div class="inf-cab">
+        <div><h1>Suteen arrisku meteorologikoa — Gipuzkoa</h1>
+          <p class="sub">FWI (Fire Weather Index) · <b>${fmtFechaLuzea(fecha(f))}</b>${esPrev ? ' · <b>IRAGARPENA</b>' : ''}</p></div>
+        ${dg ? `<div class="inf-gip" style="background:${colorDe(dg.clase).c};color:${colorDe(dg.clase).fg}">GIPUZKOA<div class="v">${fmt(dg.fwi)}</div>${claseEu(dg.clase)}${dg.pct != null ? '<br>'+dg.pct+'. pertzentila' : ''}</div>` : ''}
+      </div>
+      <div class="inf-mapa">${svgMapa(geo, puntosDe(geo, n => porNombre[n] ? porNombre[n].fwi : null))}</div>
+      ${leyendaInf()}
+      <table><thead><tr><th>Estazioa</th><th>FWI</th><th>Maila</th><th>Pertz.</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria 24 h mm</th><th>ISI</th><th>DC</th><th>Oharrak</th></tr></thead><tbody>${filas}</tbody></table>
+      ${pieInf('Mapa: gainazal jarraitua (estazioen FWIen interpolazioa, alderantzizko distantziaren arabera).')}
+    </div>`;
+  }
+
+  // --- aldiko txostena (bi dataren artean)
+  function estadisticas(est, fechas){
+    const v = fechas.map(f => diaEst(est, f)).filter(d => d && !d.prev && d.fwi != null);
+    if (!v.length) return null;
+    const cuenta = {}; UMBRALES.forEach(([n]) => cuenta[n] = 0);
+    let suma = 0, max = v[0];
+    v.forEach(d => { suma += d.fwi; cuenta[d.clase || claseDeFwi(d.fwi)]++; if (d.fwi > max.fwi) max = d; });
+    const altos = cuenta['Alto'] + cuenta['Muy alto'] + cuenta['Extremo'];
+    return {n: v.length, media: suma/v.length, max, cuenta, altos, cal: v.filter(d => d.calentando).length, serie: v};
+  }
+  function graficoSerie(serie, desde, hasta){
+    // barras diarias del FWI de GIPUZKOA; si el periodo es largo, media semanal
+    const total = Math.round((fecha(hasta) - fecha(desde))/864e5) + 1;
+    let barras = serie.map(d => ({f: d.fecha, v: d.fwi}));
+    let etiqueta = 'eguneko FWIa';
+    if (total > 400){
+      const sem = {};
+      barras.forEach(b => { const k = Math.floor((fecha(b.f) - fecha(desde))/(7*864e5)); (sem[k] = sem[k] || []).push(b); });
+      barras = Object.keys(sem).map(Number).sort((a,b) => a-b).map(k => ({f: sem[k][0].f, v: sem[k].reduce((a,b) => a+b.v, 0)/sem[k].length}));
+      etiqueta = 'asteko batez besteko FWIa';
+    }
+    const W = 700, H = 130, ml = 28, mb = 16, top = Math.max(40, ...barras.map(b => b.v)) * 1.05;
+    const x = f => ml + (fecha(f) - fecha(desde))/864e5/total*(W-ml), y = v => (H-mb) - v/top*(H-mb-4);
+    const ancho = Math.max(0.6, (W-ml)/(total > 400 ? total/7 : total) - 0.6);
+    let h = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-size="9">`;
+    [[11.2,'11,2'],[21.3,'21,3'],[38,'38']].forEach(([v,t]) => { if (v < top) h += `<line x1="${ml}" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#999" stroke-dasharray="3 3" stroke-width="0.6"/><text x="${ml-3}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" fill="#555">${t}</text>`; });
+    barras.forEach(b => { const c = colorDe(claseDeFwi(b.v)).c; h += `<rect x="${x(b.f).toFixed(1)}" y="${y(b.v).toFixed(1)}" width="${ancho.toFixed(2)}" height="${((H-mb)-y(b.v)).toFixed(1)}" fill="${c}"/>`; });
+    h += `<line x1="${ml}" x2="${W}" y1="${H-mb}" y2="${H-mb}" stroke="#333" stroke-width="0.8"/>`;
+    const marcas = [desde, fechaMedia(desde, hasta), hasta];
+    marcas.forEach((f, i) => h += `<text x="${Math.min(W-2, Math.max(ml, x(f))).toFixed(1)}" y="${H-3}" text-anchor="${['start','middle','end'][i]}" fill="#333">${fmtLargo(f)}</text>`);
+    return {svg: h + '</svg>', etiqueta};
+  }
+  const fechaMedia = (a, b) => isoDe(new Date((fecha(a).getTime() + fecha(b).getTime())/2));
+  function htmlPeriodo(desde, hasta, geo){
+    const fechas = []; for (let f = desde; f <= hasta; f = masDias(f, 1)) fechas.push(f);
+    const st = {}; DATA.estaciones.forEach(e => { st[e.nombre] = estadisticas(e, fechas); });
+    const gip = DATA.estaciones.find(e => e.resumen), sg = gip ? st[gip.nombre] : null;
+    let filas = '';
+    DATA.estaciones.forEach(e => {
+      const x = st[e.nombre], r = e.resumen;
+      const notas = [];
+      if (x && x.n < fechas.length) notas.push((fechas.length - x.n)+' egun datu gabe');
+      if (x && x.cal) notas.push(x.cal+' berotzen');
+      if (e.modelo) notas.push('eredua');
+      filas += `<tr><td class="izena">${r ? '<b>'+nombreVis(e)+'</b>' : e.nombre}</td>`+
+        (x ? `<td>${x.n}</td><td><b>${fmt(x.media)}</b></td><td>${pill(claseDeFwi(x.media))}</td><td>${fmt(x.max.fwi)} <span style="color:#555">(${fmtFecha(x.max.fecha)})</span></td>`+
+             UMBRALES.map(([nm]) => `<td>${x.cuenta[nm] || ''}</td>`).join('')+`<td><b>${Math.round(100*x.altos/x.n)} %</b></td>`
+           : `<td>0</td><td>—</td><td>—</td><td>—</td>`+UMBRALES.map(() => '<td></td>').join('')+'<td>—</td>')+
+        `<td class="izena">${notas.join(', ')}</td></tr>`;
+    });
+    const cabClases = UMBRALES.map(([nm]) => `<th><span class="pill" style="background:${colorDe(nm).c};color:${colorDe(nm).fg};font-size:7.5pt">${claseEu(nm)}</span></th>`).join('');
+    const graf = sg ? graficoSerie(sg.serie, desde, hasta) : null;
+    return `<div class="inf">
+      <div class="inf-cab">
+        <div><h1>Suteen arrisku meteorologikoa — Gipuzkoa</h1>
+          <p class="sub">Aldiko txostena · <b>${fmtLargo(desde)} – ${fmtLargo(hasta)}</b> (${fechas.length} egun)</p></div>
+        ${sg ? `<div class="inf-gip" style="background:${colorDe(claseDeFwi(sg.media)).c};color:${colorDe(claseDeFwi(sg.media)).fg}">GIPUZKOA<div class="v">${fmt(sg.media)}</div>batez bestekoa<br>max. ${fmt(sg.max.fwi)} · ${sg.altos} egun ≥ Handia</div>` : ''}
+      </div>
+      <h2>Aldiko FWI batez bestekoa</h2>
+      <div class="inf-mapa">${svgMapa(geo, puntosDe(geo, n => st[n] ? st[n].media : null))}</div>
+      ${leyendaInf()}
+      ${graf ? `<h2>GIPUZKOA: ${graf.etiqueta}</h2><div class="graf">${graf.svg}</div>` : ''}
+      <table><thead><tr><th>Estazioa</th><th>Egunak</th><th>Batez b.</th><th>Maila</th><th>Maximoa</th>${cabClases}<th>≥ Handia</th><th>Oharrak</th></tr></thead><tbody>${filas}</tbody></table>
+      ${pieInf('Mapa: aldiko FWI batez bestekoaren gainazal jarraitua (estazioen balioen interpolazioa, alderantzizko distantziaren arabera). Mailen zutabeak: maila bakoitzeko egun kopurua. Neurtutako egunak soilik (iragarpenik gabe).')}
+    </div>`;
+  }
+
+  function abrirInforme(){
     const f = FECHA || fechaActual();
+    $('#infDesde').value = f; $('#infHasta').value = f;
+    $('#infDesde').max = fechaMaxima(); $('#infHasta').max = fechaMaxima();
+    $('#infAviso').hidden = true;
+    const dlg = $('#dlgInf');
+    if (dlg.showModal) dlg.showModal(); else informe(f, f);
+  }
+  function informe(desde, hasta){
     const n = $('#fEstado');
-    const previo = (f < primeraEnJson() && !HIST) ? cargarHist() : Promise.resolve();
+    const periodo = desde !== hasta;
+    if (periodo && hasta > fechaActual()) hasta = fechaActual();   // aldiko txostena: neurtutako egunak soilik
+    const necesita = periodo || desde < primeraEnJson();
     n.hidden = false; n.textContent = 'Txostena prestatzen…';
-    Promise.all([previo, cargarGeo()]).then(([, geo]) => {
+    Promise.all([necesita && !HIST ? cargarHist() : Promise.resolve(), cargarGeo()]).then(([, geo]) => {
       n.hidden = true;
-      const val = est => FECHA ? diaEst(est, f) : (hoyCalculado(est) || diaEst(est, f) || ultimo(est));
-      const porNombre = {}; DATA.estaciones.forEach(e => { porNombre[e.nombre] = val(e); });
-      const gip = DATA.estaciones.find(e => e.resumen), dg = gip ? porNombre[gip.nombre] : null;
-      const esPrev = f > fechaActual();
-      const pill = d => d ? `<span class="pill" style="background:${colorDe(d.clase).c};color:${colorDe(d.clase).fg}">${claseEu(d.clase)}</span>` : '—';
-      let filas = '';
-      DATA.estaciones.forEach(e => {
-        const d = porNombre[e.nombre], notas = [];
-        if (!d) notas.push('daturik ez');
-        else {
-          if (d.fecha && d.fecha !== f) notas.push('datua: '+fmtFecha(d.fecha));
-          if (d.prev) notas.push(d.k === 0 || d.calculado ? 'kalkulatua' : 'iragarpena');
-          if (d.calentando) notas.push('berotzen');
-          if (e.modelo) notas.push('eredua (Open-Meteo)');
-          if (e.resumen && d.cobertura != null && d.cobertura < 100) notas.push('lurraldearen % '+d.cobertura);
-        }
-        const r = e.resumen;
-        filas += `<tr><td class="izena">${r ? '<b>'+nombreVis(e)+'</b>' : e.nombre}</td><td><b>${d ? fmt(d.fwi) : '—'}</b></td><td>${pill(d)}</td>`+
-          `<td>${d && d.pct != null ? d.pct : '—'}</td><td>${r||!d ? '' : fmt(d.T)}</td><td>${r||!d ? '' : fmt(d.H,0)}</td>`+
-          `<td>${r||!d ? '' : fmt(d.W)+(d.dir!=null?' '+sector8(d.dir):'')}</td><td>${r||!d ? '' : fmt(d.R)}</td>`+
-          `<td>${d ? fmt(d.isi) : ''}</td><td>${r||!d ? '' : fmt(d.dc)}</td><td class="izena">${notas.join(', ')}</td></tr>`;
-      });
-      const leyenda = UMBRALES.map(([nm]) => `<span><i style="background:${colorDe(nm).c}"></i>${claseEu(nm)}</span>`).join('');
-      const ahora = new Date();
-      $('#informe').innerHTML = `<div class="inf">
-        <div class="inf-cab">
-          <div><h1>Suteen arrisku meteorologikoa — Gipuzkoa</h1>
-            <p class="sub">FWI (Fire Weather Index) · <b>${fmtFechaLuzea(fecha(f))}</b>${esPrev ? ' · <b>IRAGARPENA</b>' : ''}</p>
-            <p class="sub">Eguzki-eguerdiko datuak (13:00 neguan, 14:00 udan)</p></div>
-          ${dg ? `<div class="inf-gip" style="background:${colorDe(dg.clase).c};color:${colorDe(dg.clase).fg}">GIPUZKOA<div class="v">${fmt(dg.fwi)}</div>${claseEu(dg.clase)}${dg.pct != null ? '<br>'+dg.pct+'. pertzentila' : ''}</div>` : ''}
-        </div>
-        <div class="inf-mapa">${svgMapa(geo, nombre => porNombre[nombre])}</div>
-        <div class="leg">${leyenda}<span><i style="background:#c9d0cc"></i>Daturik ez</span></div>
-        <table><thead><tr><th>Estazioa</th><th>FWI</th><th>Maila</th><th>Pertz.</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria 24 h mm</th><th>ISI</th><th>DC</th><th>Oharrak</th></tr></thead><tbody>${filas}</tbody></table>
-        <p class="pie">Mapa: eragin-eremuak (estazio bakoitzaren FWIa bere Thiessen poligonoan). Pertzentila: hilabete bereko egun historikoekin alderatuta (2010etik). GIPUZKOA: estazioen FWIen batez besteko haztatua, eragin-eremuen azaleraren arabera. Datuak: Euskalmet / Open Data Euskadi; Mutriku eta iragarpenak: Open-Meteo.com (CC BY 4.0). Tresna orientagarria: ez ditu ordezkatzen abisu ofizialak.<br>
-        Sortua: ${fmtFechaLuzea(ahora)}, ${fmtOrdua(ahora)} · ${location.host}${location.pathname}</p>
-      </div>`;
-      const titulo = document.title;
-      const limpiar = () => { document.body.classList.remove('imprimiendo'); document.title = titulo; window.removeEventListener('afterprint', limpiar); };
-      window.addEventListener('afterprint', limpiar);
-      document.body.classList.add('imprimiendo');
-      document.title = 'FWI_Gipuzkoa_' + f;
-      setTimeout(() => { window.print(); setTimeout(limpiar, 1000); }, 50);
+      if (periodo) imprimir(htmlPeriodo(desde, hasta, geo), 'FWI_Gipuzkoa_'+desde+'_'+hasta);
+      else imprimir(htmlDia(desde, geo), 'FWI_Gipuzkoa_'+desde);
     }).catch(() => { n.hidden = false; n.textContent = 'Ezin izan da txostena prestatu. Saiatu berriro.'; });
   }
 
