@@ -246,11 +246,35 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const nombreVis = est => est.resumen ? est.nombre.toUpperCase() : est.nombre;
   function ultimo(est){ return est.dias.length ? est.dias[est.dias.length-1] : null; }
 
+  // Fecha y hora de Euskadi, sea cual sea la zona horaria del navegador
+  function hoyISO(){ return new Intl.DateTimeFormat('sv-SE', {timeZone:'Europe/Madrid'}).format(new Date()); }
+  function minutosEuskadi(){
+    const [h, m] = new Intl.DateTimeFormat('en-GB', {timeZone:'Europe/Madrid', hour:'2-digit', minute:'2-digit', hourCycle:'h23'})
+                     .format(new Date()).split(':').map(Number);
+    return h * 60 + m;
+  }
+  // El dato del día se fija MARGEN_FIJADO minutos después de la hora del dato (mediodía solar: 14:00 en
+  // verano, 13:00 en invierno), para dar tiempo a que Euskalmet lo publique y el proceso lo recoja.
+  // A partir de entonces el día en curso ya no es previsión: sale en la tarjeta, no en la tabla.
+  const MARGEN_FIJADO = 30;
+  function diaFijado(){ return DATA && DATA.hora_dato != null && minutosEuskadi() >= DATA.hora_dato * 60 + MARGEN_FIJADO; }
+
   // Egun errealak eta iragarpena (jada neurtutako datak errepikatu gabe)
   function conPrevision(est){
     const ult = est.dias.length ? est.dias[est.dias.length-1].fecha : '';
-    const prev = (est.prevision || []).filter(p => p.fecha > ult).map(p => Object.assign({}, p, {prev: true}));
+    const hoy = hoyISO(), fijado = diaFijado();
+    const prev = (est.prevision || []).filter(p => p.fecha > ult && !(fijado && p.fecha <= hoy))
+                                      .map(p => Object.assign({}, p, {prev: true}));
     return {prev};
+  }
+
+  // Si ya pasó la hora del dato y la medición de hoy aún no está completa (se reintenta en la
+  // siguiente ejecución), la tarjeta muestra el valor de hoy calculado con lo medido hasta ahora.
+  function hoyCalculado(est){
+    const u = ultimo(est), hoy = hoyISO();
+    if (!diaFijado() || (u && u.fecha >= hoy)) return null;
+    const p = (est.prevision || []).find(x => x.fecha === hoy);
+    return p ? Object.assign({}, p, {calculado: true}) : null;
   }
 
   function spark(dias){
@@ -277,7 +301,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     const hoy = new Date(); hoy.setHours(0,0,0,0);
 
     $('#stations').innerHTML = DATA.estaciones.map((est,i) => {
-      const u = ultimo(est);
+      const u = hoyCalculado(est) || ultimo(est);
       if (!u) return `<button class="st" type="button" data-st="${i}" aria-pressed="${i===sel}"><span class="st-name">${est.nombre}</span><span class="st-val">—</span><span class="chip">Daturik ez</span></button>`;
       const col = colorDe(u.clase);
       const atras = esISO(u.fecha) ? Math.round((hoy - fecha(u.fecha))/864e5) : 0;
@@ -302,7 +326,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span>${linIsi}</span>
         <span class="chip" style="background:${col.c};color:${col.fg}">${claseEu(u.clase)}</span>
         ${insigniaEredua}${insigniaResumen}
-        <span class="st-date${viejo?' viejo':''}">${esISO(u.fecha)?fmtFecha(u.fecha):''}${viejo?' · datu berri gabe':''}</span>
+        <span class="st-date${viejo?' viejo':''}">${esISO(u.fecha)?fmtFecha(u.fecha):''}${u.calculado?' · kalkulatua':''}${viejo?' · datu berri gabe':''}</span>
         ${extra}
         ${notaCobertura}
         ${linDatos}
@@ -335,7 +359,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     });
     $('#prevTabla').innerHTML = h + '</tbody></table>';
     const info = DATA.prevision_info || {};
-    let nota = 'Balio bakoitzaren azpian, 2025 eta 2026an ebaluatutako kasuen % 80 inguru hartzen duen tartea. "Kalkulatua" da 12:00ko datua iritsi aurreko oraingo eguna. 💨 ikurrak hego haizearen abisua adierazten du. ';
+    let nota = 'Balio bakoitzaren azpian, 2025 eta 2026an ebaluatutako kasuen % 80 inguru hartzen duen tartea. "Kalkulatua": egungo balioa, ' + String(DATA.hora_dato).padStart(2,'0') + ':00etako datua osatu aurretik. 💨 ikurrak hego haizearen abisua adierazten du. ';
     if (info.estado === 'obsoleta'){
       const g = info.generada ? new Date(info.generada) : null;
       nota = 'Ezin izan da iragarpena eguneratu; ' + (g && !isNaN(g) ? (fmtFechaLuzea(g)+', '+fmtOrdua(g)) : 'aurreko exekuzio bateko') + ' iragarpena erakusten da. ' + nota;
