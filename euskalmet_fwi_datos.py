@@ -9,8 +9,16 @@ Para cada estación (Arrasate, Miramon, Bidania, Berastegi, Zegama) y cada día:
     (de las 12:00 del día anterior a las 12:00 del día)
 
 La salida es un CSV con las columnas
-    fecha,estacion,temperatura,humedad,viento,lluvia
+    fecha,estacion,temperatura,humedad,viento,lluvia,direccion,origen
 listo para importar en el panel.
+
+Regla para datos que faltan (igual en todas las estaciones):
+  * lluvia: se toma de la estación vecina más cercana que la tenga completa (VECINAS_LLUVIA);
+    si ninguna la tiene (fallo general), de Open-Meteo.
+  * temperatura, humedad y viento (con su dirección): de Open-Meteo en las coordenadas de la
+    propia estación (COORDENADAS).
+La columna 'origen' dice qué se ha rellenado y de dónde, p. ej. "humedad:Open-Meteo; lluvia:Zizurkil".
+Vacía = todo medido por la propia estación.
 
 Los sensores se detectan solos la primera vez (a partir del resumen diario de la
 API) y se guardan en sensores.json para no repetir esa consulta. Si algún día
@@ -84,6 +92,46 @@ RE_HORA = re.compile(r"(\d{1,2}):(\d{2})")
 RE_ESPERA = re.compile(r"wait\s+(\d+)\s+seconds", re.I)
 LECTURAS_POR_DIA = 144  # tramos de 10 minutos en 24 h
 MIN_LLUVIA = 130        # con menos lecturas (≈90 %) la lluvia de 24 h no es fiable y se omite el día
+
+# Nombre de cada código (para la columna origen). Altzola no está en ESTACIONES pero puede ser vecina.
+NOMBRES = {cod: nombre for nombre, cod in ESTACIONES.items()}
+NOMBRES["C078"] = "Altzola"
+NOMBRES["C064"] = "Zarautz"
+NOMBRES["C086"] = "Inurritza"
+
+# Si a una estación le falta lluvia un día, se toma la de la estación vecina más cercana, por orden:
+# si la primera tampoco la tiene completa, se prueba la segunda. Revisa el orden si conoces mejor la zona.
+VECINAS_LLUVIA = {
+    "C078": ["C023", "C058"],   # Altzola   -> Arrasate, Bidania
+    "C023": ["C028", "C078"],   # Arrasate  -> Zegama, Altzola
+    "C028": ["C043", "C023"],   # Zegama    -> Ordizia, Arrasate
+    "C043": ["C058", "C028"],   # Ordizia   -> Bidania, Zegama
+    "C058": ["C029", "C043"],   # Bidania   -> Zizurkil, Ordizia
+    "C029": ["C058", "C026"],   # Zizurkil  -> Bidania, Berastegi
+    "C026": ["C029", "C058"],   # Berastegi -> Zizurkil, Bidania
+    "C017": ["B096", "C029"],   # Miramon   -> Pasaia, Zizurkil
+    "B096": ["C017"],           # Pasaia    -> Miramon
+    "C086": ["C029", "C058"],   # Inurritza (lluvia de Zarautz) -> Zizurkil, Bidania
+}
+_SENSOR_LLUVIA = {}  # código de la vecina -> sensor de lluvia ya detectado
+
+# Coordenadas (latitud, longitud, altitud en m) para pedir a Open-Meteo los datos que falten.
+# Son las mismas que COORD de actualizar_fwi.py (si cambias unas, cambia las otras). Con altitud
+# None, Open-Meteo usaría la del terreno en ese punto.
+COORDENADAS = {
+    "C023": (43.0695849, -2.493080, 318),   # Arrasate
+    "C017": (43.2868, -1.97121, 113),       # Miramon
+    "C058": (43.146, -2.15502, 592),        # Bidania
+    "C026": (43.1248, -1.9817, 379),        # Berastegi
+    "C028": (42.9588, -2.29852, 520),       # Zegama
+    "C043": (43.0547, -2.1783, 153),        # Ordizia
+    "C029": (43.1992, -2.0742, 115),        # Zizurkil
+    "B096": (43.3380, -1.9250, 0),          # Pasaia (plataforma en la bocana)
+    "C064": (43.2930, -2.1454, 10),         # Zarautz
+    "C078": (43.2365, -2.4002, 30),         # Altzola
+}
+DIAS_ESPERA = 3   # los días más recientes no se rellenan: puede que Euskalmet aún no haya publicado todo
+VIENTO_FACTOR = 3.6   # m/s -> km/h de la API de Euskalmet (1.0 con --viento-kmh)
 
 
 # ---------------------------------------------------------------- acceso a la API
@@ -316,46 +364,228 @@ def lluvia_24h(alm, cod, sens, dia, hora):
     return round(total, 2), hay
 
 
-# ---------------------------------------------------------------- principal
-def obtener_dia(cli, alm, sensores, cod, dia, hora, minimo=MIN_LLUVIA):
-    """Lee los cuatro datos de una estación y un día.
+def sensor_lluvia(cli, cod, dia):
+    """Sensor de lluvia de una estación en un día (del resumen diario), o None si no lo hay."""
+    ruta = (f"/euskalmet/readings/aggregated/summarized/byDay/forStation/"
+            f"{cod}/at/{dia:%Y}/{dia:%m}/{dia:%d}")
+    try:
+        r = cli.get(ruta)
+    except RuntimeError:
+        return None
+    if r.status_code != 200:
+        return None
+    for it in r.json().get("items", []):
+        k = it.get("key") or ""
+        if k.endswith("/" + MEDIDAS["lluvia"]):
+            sensor, tipo, medida = k.split("/")
+            return {"sensor": sensor, "tipo": tipo, "medida": medida}
+    return None
 
-    Devuelve ((t, h, w_ms, lluvia), n_lluvia, "") o (None, n_lluvia, motivo).
-    Si falta algún dato, vuelve a detectar los sensores de esa estación en ese día: las
-    estaciones a veces cambian de sensor y el código antiguo deja de devolver datos.
+
+def lluvia_respaldo(cli, alm, cod, dia, hora, minimo=MIN_LLUVIA):
+    """Lluvia de 24 h de la estación vecina más cercana que la tenga completa ese día.
+
+    Devuelve (mm, nombre_de_la_vecina) o (None, None) si ninguna vecina sirve."""
+    for vec in VECINAS_LLUVIA.get(cod, []):
+        sen = _SENSOR_LLUVIA.get(vec) or sensor_lluvia(cli, vec, dia)
+        if sen is None:
+            continue
+        _SENSOR_LLUVIA[vec] = sen
+        try:
+            ll, n = lluvia_24h(alm, vec, {"lluvia": sen}, dia, hora)
+            if n < minimo:   # quizá la vecina cambió de sensor: se vuelve a detectar ese día
+                nuevo = sensor_lluvia(cli, vec, dia)
+                if nuevo and nuevo != sen:
+                    _SENSOR_LLUVIA[vec] = nuevo
+                    alm.olvidar(vec, [dia, dia - timedelta(days=1)])
+                    ll, n = lluvia_24h(alm, vec, {"lluvia": nuevo}, dia, hora)
+        except RuntimeError:
+            continue
+        if n >= minimo:
+            return ll, NOMBRES.get(vec, vec)
+    return None, None
+
+
+# ---------------------------------------------------------------- Open-Meteo (respaldo)
+URL_OM_ARCHIVO = "https://archive-api.open-meteo.com/v1/archive"
+URL_OM_PREVISION = "https://api.open-meteo.com/v1/forecast"   # últimos ~90 días, que el archivo aún no tiene
+VARS_OM = "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m,precipitation"
+
+
+class Modelo:
+    """Datos horarios de Open-Meteo por estación, descargados por años y guardados en memoria."""
+
+    def __init__(self):
+        self.horas = {}       # cod -> {"AAAA-MM-DDTHH:00": (t, h, w_kmh, dir, lluvia_1h)}
+        self.cargado = set()  # (cod, año) o (cod, "prevision")
+
+    def _pedir(self, url, cod, ini, fin):
+        if cod not in COORDENADAS:
+            raise RuntimeError(f"no hay coordenadas de {cod} para Open-Meteo")
+        if fin < ini:
+            return
+        lat, lon, alt = COORDENADAS[cod]
+        params = {"latitude": lat, "longitude": lon, "timezone": "Europe/Madrid", "hourly": VARS_OM,
+                  "wind_speed_unit": "kmh", "start_date": ini.isoformat(), "end_date": fin.isoformat()}
+        if alt is not None:
+            params["elevation"] = alt
+        for _ in range(5):
+            try:
+                r = requests.get(url, params=params, timeout=90)
+            except requests.RequestException:
+                time.sleep(20)
+                continue
+            if r.status_code == 200:
+                tb = r.json().get("hourly", {})
+                d = self.horas.setdefault(cod, {})
+                for i, ts in enumerate(tb.get("time", [])):
+                    fila = tuple(tb[k][i] for k in VARS_OM.split(","))
+                    if any(v is not None for v in fila):
+                        d[ts] = fila
+                return
+            if r.status_code == 429 or r.status_code >= 500:
+                time.sleep(20)
+                continue
+            raise RuntimeError(f"Open-Meteo respondió HTTP {r.status_code}: {r.text[:200]}")
+        raise RuntimeError("Open-Meteo no responde")
+
+    def _asegurar(self, cod, dias):
+        ayer = date.today() - timedelta(days=1)
+        for anio in sorted({d.year for d in dias}):
+            if (cod, anio) not in self.cargado:
+                self._pedir(URL_OM_ARCHIVO, cod, date(anio, 1, 1), min(date(anio, 12, 31), ayer))
+                self.cargado.add((cod, anio))
+
+    def dia(self, cod, dia, hora):
+        """{'temperatura','humedad','viento'(km/h),'direccion','lluvia'(24 h)} a esa hora; None donde falte."""
+        ahora = datetime.combine(dia, hora_t(hora, 0))
+        claves = [(ahora - timedelta(hours=k)).strftime("%Y-%m-%dT%H:00") for k in range(24)]
+        self._asegurar(cod, [dia, dia - timedelta(days=1)])
+        d = self.horas.get(cod, {})
+        if any(k not in d for k in claves) and (cod, "prevision") not in self.cargado \
+                and dia >= date.today() - timedelta(days=90):
+            self.cargado.add((cod, "prevision"))
+            self._pedir(URL_OM_PREVISION, cod, date.today() - timedelta(days=91), date.today())
+            d = self.horas.get(cod, {})
+        t, h, w, dv, _ = d.get(claves[0], (None,) * 5)
+        lluvias = [d.get(k, (None,) * 5)[4] for k in claves]   # cada valor = lluvia de la hora anterior
+        ll = round(sum(lluvias), 2) if None not in lluvias else None
+        return {"temperatura": t, "humedad": h, "viento": w, "direccion": dv, "lluvia": ll}
+
+
+MODELO = Modelo()
+
+
+def rellenar(cli, alm, cod, dia, hora, t, h, w_kmh, dv, ll, n, minimo=MIN_LLUVIA, cod_lluvia=None, origen=None):
+    """Aplica la regla general a los datos que falten (None) de una estación y un día.
+
+    Lluvia (si n < minimo): estación vecina más cercana con la lluvia completa; si ninguna, Open-Meteo.
+    Temperatura, humedad y viento (con su dirección): Open-Meteo en las coordenadas de 'cod'.
+    'cod_lluvia' es la estación de la que sale la lluvia, si es otra (Inurritza en Zarautz).
+    Devuelve ((t, h, w_kmh, dv, ll, origen), "") o (None, motivo)."""
+    origen = list(origen or [])
+    faltan = [k for k, v in (("temperatura", t), ("humedad", h), ("viento", w_kmh)) if v is None]
+    falta_lluvia = n < minimo
+    motivo_ll = ("sin lecturas de lluvia" if n == 0 else f"lluvia incompleta ({n}/{LECTURAS_POR_DIA})")
+    if falta_lluvia:
+        ll_v, vec = lluvia_respaldo(cli, alm, cod_lluvia or cod, dia, hora, minimo)
+        if ll_v is not None:
+            ll, falta_lluvia = ll_v, False
+            origen.append(f"lluvia:{vec}")
+    if faltan or falta_lluvia:
+        try:
+            m = MODELO.dia(cod, dia, hora)
+        except RuntimeError as e:
+            m = {}
+            print(f"  (Open-Meteo: {e})")
+        for var in faltan:
+            if m.get(var) is None:
+                return None, f"sin {var} a las {hora:02d}:00 ni en la estación ni en Open-Meteo"
+        if falta_lluvia and m.get("lluvia") is None:
+            return None, motivo_ll + "; tampoco en las vecinas ni en Open-Meteo"
+        if "temperatura" in faltan:
+            t = m["temperatura"]
+            origen.append("temperatura:Open-Meteo")
+        if "humedad" in faltan:
+            h = m["humedad"]
+            origen.append("humedad:Open-Meteo")
+        if "viento" in faltan:
+            w_kmh, dv = m["viento"], m["direccion"]
+            origen.append("viento:Open-Meteo")
+        if falta_lluvia:
+            ll = m["lluvia"]
+            origen.append("lluvia:Open-Meteo")
+    return (t, h, w_kmh, dv, ll, "; ".join(origen)), ""
+
+
+def faltas(t, h, w, n, minimo):
+    """Texto con lo que falta de un día ("" si está completo)."""
+    f = [k for k, v in (("temperatura", t), ("humedad", h), ("viento", w)) if v is None]
+    if n < minimo:
+        f.append("lluvia" if n == 0 else f"lluvia ({n}/{LECTURAS_POR_DIA})")
+    return ", ".join(f)
+
+
+def se_puede_rellenar(dia, hasta=None):
+    """True si el día es lo bastante antiguo para rellenar lo que falte (ver DIAS_ESPERA)."""
+    hasta = hasta or date.today()
+    return dia <= hasta - timedelta(days=DIAS_ESPERA)
+
+
+def origen_de_fila(fila):
+    """Lee la columna 'origen' de un CSV, convirtiendo la antigua 'lluvia_origen' si es lo que hay."""
+    if fila.get("origen"):
+        return fila["origen"]
+    viejo = (fila.get("lluvia_origen") or "").strip()
+    return f"lluvia:{viejo}" if viejo else ""
+
+
+# ---------------------------------------------------------------- principal
+def obtener_dia(cli, alm, sensores, cod, dia, hora, minimo=MIN_LLUVIA, rellenar_huecos=True):
+    """Lee los datos de una estación y un día.
+
+    Devuelve ((t, h, w, lluvia, dir, origen), n_lluvia, "") o (None, n_lluvia, motivo); w en las
+    unidades de la API (se multiplica por VIENTO_FACTOR para km/h). Si falta algún dato, primero
+    vuelve a detectar los sensores (las estaciones a veces cambian de sensor) y, si sigue faltando,
+    lo rellena con la regla general (ver rellenar()), salvo con rellenar_huecos=False: entonces
+    devuelve None para reintentarlo más adelante (días recientes que quizá aún no están publicados).
     """
     def leer(sens):
-        t = valor_puntual(alm, cod, sens, "temperatura", dia, hora)
-        h = valor_puntual(alm, cod, sens, "humedad", dia, hora)
-        w = valor_puntual(alm, cod, sens, "viento", dia, hora)
-        faltan = [k for k, v in (("temperatura", t), ("humedad", h), ("viento", w)) if v is None]
-        if faltan:
-            return None, 0, f"sin lectura a las {hora:02d}:00 de " + ", ".join(faltan)
+        vals = {v: valor_puntual(alm, cod, sens, v, dia, hora) for v in ("temperatura", "humedad", "viento")}
         ll, n = lluvia_24h(alm, cod, sens, dia, hora)
-        if n == 0:
-            return None, 0, "sin lecturas de lluvia"
-        if n < minimo:
-            return None, n, f"lluvia incompleta ({n}/{LECTURAS_POR_DIA})"
-        dv = valor_puntual(alm, cod, sens, "direccion", dia, hora) if "direccion" in sens else None
-        return (t, h, w, ll, dv), n, ""
+        return vals, ll, n
 
-    datos, n, motivo = leer(sensores[cod])
-    if datos is None:
+    def incompleto(vals, n):
+        return None in vals.values() or n < minimo
+
+    vals, ll, n = leer(sensores[cod])
+    if incompleto(vals, n):
         try:
             nuevos = detectar_sensores(cli, cod, dia)
         except RuntimeError:
             nuevos = None
         if nuevos and nuevos != sensores[cod]:
             alm.olvidar(cod, [dia, dia - timedelta(days=1)])
-            datos2, n2, motivo2 = leer(nuevos)
-            if datos2 is not None:
+            v2, ll2, n2 = leer(nuevos)
+            if not incompleto(v2, n2):
                 print(f"  ({cod}: la estación ha cambiado de sensores; se usan los de {dia})")
                 sensores[cod] = nuevos
-                return datos2, n2, ""
+                vals, ll, n = v2, ll2, n2
     elif "direccion" not in sensores[cod]:
-        if intentar_direccion(cli, alm, sensores, cod, dia, hora):
-            datos = leer(sensores[cod])[0] or datos
-    return datos, n, motivo
+        intentar_direccion(cli, alm, sensores, cod, dia, hora)
+
+    dv = None
+    if "direccion" in sensores[cod] and vals["viento"] is not None:
+        dv = valor_puntual(alm, cod, sensores[cod], "direccion", dia, hora)
+    w_kmh = vals["viento"] * VIENTO_FACTOR if vals["viento"] is not None else None
+    if not rellenar_huecos and incompleto(vals, n):
+        return None, n, "falta " + faltas(vals["temperatura"], vals["humedad"], vals["viento"], n, minimo)
+    res, motivo = rellenar(cli, alm, cod, dia, hora, vals["temperatura"], vals["humedad"], w_kmh, dv,
+                           ll, n, minimo)
+    if res is None:
+        return None, n, motivo
+    t, h, w_kmh, dv, ll, origen = res
+    return (t, h, w_kmh / VIENTO_FACTOR, ll, dv, origen), n, ""
 
 
 def main() -> int:
@@ -392,8 +622,9 @@ def main() -> int:
         print("No he podido firmar el token con esa clave:", type(e).__name__, str(e)[:200])
         return 1
 
-    global FICHERO_SENSORES
+    global FICHERO_SENSORES, VIENTO_FACTOR
     FICHERO_SENSORES = Path(a.sensores)
+    VIENTO_FACTOR = 1.0 if a.viento_kmh else 3.6
     cli = Cliente(lambda: crear_token(a.clave, a.email, a.emisor))
     try:
         sensores = cargar_sensores(cli, ini)
@@ -422,7 +653,8 @@ def main() -> int:
                 for fila in csv.DictReader(f):
                     previas[(fila["fecha"], fila["estacion"])] = [
                         fila["fecha"], fila["estacion"], fila["temperatura"],
-                        fila["humedad"], fila["viento"], fila["lluvia"], fila.get("direccion", "")]
+                        fila["humedad"], fila["viento"], fila["lluvia"], fila.get("direccion", ""),
+                        origen_de_fila(fila)]
         except (OSError, KeyError) as e:
             print(f"No puedo leer {a.completar}: {type(e).__name__} {e}")
             return 1
@@ -435,7 +667,8 @@ def main() -> int:
     def guardar():
         with open(nombre_csv, "w", newline="", encoding="utf-8") as f:
             wr = csv.writer(f)
-            wr.writerow(["fecha", "estacion", "temperatura", "humedad", "viento", "lluvia", "direccion"])
+            wr.writerow(["fecha", "estacion", "temperatura", "humedad", "viento", "lluvia", "direccion",
+                         "origen"])
             wr.writerows(filas)
 
     alm = Almacen(cli)
@@ -465,15 +698,18 @@ def main() -> int:
                 print(f"{nombre}: {motivo}; se omite este día.")
                 omitidos.append((dia, nombre, motivo))
                 continue
-            t, h, w, ll, dv = datos
+            t, h, w, ll, dv, origen = datos
 
-            aviso = "" if n >= LECTURAS_POR_DIA else f"  (¡solo {n} de {LECTURAS_POR_DIA} lecturas de lluvia!)"
+            if origen:
+                aviso = f"  (rellenado: {origen})"
+            else:
+                aviso = "" if n >= LECTURAS_POR_DIA else f"  (¡solo {n} de {LECTURAS_POR_DIA} lecturas de lluvia!)"
             w_kmh = w * factor_viento
             dv_txt = f"  dir={dv:.0f}°" if dv is not None else "  (sin dirección de viento)"
             print(f"{nombre}: T={t:.1f} °C  HR={h:.0f} %  viento={w_kmh:.1f} km/h  "
                   f"lluvia 24 h={ll:.2f} mm [{n}/{LECTURAS_POR_DIA}]{aviso}{dv_txt}")
             filas.append([dia.isoformat(), nombre, round(t, 1), round(h, 1), round(w_kmh, 1), ll,
-                          round(dv, 0) if dv is not None else ""])
+                          round(dv, 0) if dv is not None else "", origen])
         if filas:
             guardar()   # se guarda cada día: si se corta la ejecución, se puede reanudar con --completar
         dia += timedelta(days=1)

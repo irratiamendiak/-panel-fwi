@@ -35,10 +35,12 @@ def asegurar_sensores(cli, sens, dia, alm=None, hora=None):
     return all(v in sens for v in ("temperatura", "humedad", "lluvia"))
 
 
-def leer_dia(cli, alm, sens, dia, hora, viento):
+def leer_dia(cli, alm, sens, dia, hora, viento, lluvia_manual=None, rellenar_huecos=True):
     """(fila, motivo) de un día. 'viento' es (velocidad_kmh, direccion_o_None) ya sacado del
-    modelo para ese día, o None si el modelo no tiene ese día. Si Altzola ha cambiado de sensor,
-    se vuelve a detectar ese mismo día y se reintenta, igual que con Zarautz."""
+    modelo para ese día, o None si el modelo no tiene ese día. 'lluvia_manual' (mm) sustituye a la
+    lluvia de la estación ese día, para huecos que se conocen de otra forma (p. ej. "no llovió").
+    Si Altzola ha cambiado de sensor, se vuelve a detectar ese mismo día y se reintenta; lo que
+    siga faltando se rellena con la regla general (ew.rellenar)."""
     def leer_principales():
         t = ew.valor_puntual(alm, ESTACION, sens, "temperatura", dia, hora)
         h = ew.valor_puntual(alm, ESTACION, sens, "humedad", dia, hora)
@@ -52,27 +54,32 @@ def leer_dia(cli, alm, sens, dia, hora, viento):
             alm.olvidar(ESTACION, [dia])
             sens.update(nuevos)
             t, h = leer_principales()
-    if None in (t, h):
-        faltan = [k for k, v in (("temperatura", t), ("humedad", h)) if v is None]
-        return None, f"sin lectura a las {hora:02d}:00 de " + ", ".join(faltan) + " (Altzola)"
+    w, dv = viento if viento is not None else (None, None)   # viento: siempre del modelo, por diseño
 
-    if viento is None:
-        return None, "sin viento del modelo (Open-Meteo) ese día"
-    w, dv = viento
+    minimo = ew.LECTURAS_POR_DIA - 6
+    origen = []
+    if lluvia_manual is not None:
+        ll, n = lluvia_manual, ew.LECTURAS_POR_DIA
+        origen.append("lluvia:manual")
+    else:
+        ll, n = ew.lluvia_24h(alm, ESTACION, sens, dia, hora)
+        if n < minimo:
+            nuevo = zr.sensores_parciales(cli, ESTACION, dia, {"lluvia": ew.MEDIDAS["lluvia"]})
+            if nuevo.get("lluvia") and nuevo["lluvia"] != sens.get("lluvia"):
+                alm.olvidar(ESTACION, [dia])
+                sens["lluvia"] = nuevo["lluvia"]
+                ll, n = ew.lluvia_24h(alm, ESTACION, sens, dia, hora)
 
-    ll, n = ew.lluvia_24h(alm, ESTACION, sens, dia, hora)
-    if n < ew.LECTURAS_POR_DIA - 6:
-        nuevo = zr.sensores_parciales(cli, ESTACION, dia, {"lluvia": ew.MEDIDAS["lluvia"]})
-        if nuevo.get("lluvia") and nuevo["lluvia"] != sens.get("lluvia"):
-            alm.olvidar(ESTACION, [dia])
-            sens["lluvia"] = nuevo["lluvia"]
-            ll, n = ew.lluvia_24h(alm, ESTACION, sens, dia, hora)
-    if n == 0:
-        return None, "sin lecturas de lluvia (Altzola)"
-    if n < ew.LECTURAS_POR_DIA - 6:
-        return None, f"lluvia incompleta en Altzola ({n}/{ew.LECTURAS_POR_DIA})"
+    # Regla general: lluvia de la vecina más cercana (Arrasate, luego Bidania) y, si no, de Open-Meteo;
+    # temperatura y humedad que falten, de Open-Meteo en las coordenadas de Altzola.
+    if not rellenar_huecos and ew.faltas(t, h, w, n, minimo):
+        return None, "falta " + ew.faltas(t, h, w, n, minimo) + " (Altzola)"
+    res, motivo = ew.rellenar(cli, alm, ESTACION, dia, hora, t, h, w, dv, ll, n, minimo, origen=origen)
+    if res is None:
+        return None, motivo + " (Altzola)"
+    t, h, w, dv, ll, origen = res
 
     fila = {"fecha": dia.isoformat(), "temperatura": round(t, 1), "humedad": round(h, 1),
             "viento": round(w, 1), "lluvia": round(ll, 2),
-            "direccion": round(dv) if dv is not None else None}
-    return fila, ""
+            "direccion": round(dv) if dv is not None else None, "origen": origen}
+    return fila, (f"rellenado: {origen}" if origen else "")

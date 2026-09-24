@@ -65,11 +65,14 @@ def asegurar_sensores(cli, sens, dia, alm=None, hora=None):
     return all(v in sens for v in ("temperatura", "humedad", "viento", "lluvia"))
 
 
-def leer_dia(cli, alm, sens, dia, hora):
+def leer_dia(cli, alm, sens, dia, hora, lluvia_manual=None, rellenar_huecos=True):
     """(fila, motivo) de un día. fila es None si no se puede construir ese día.
 
     Si Zarautz ha cambiado de sensor de temperatura/humedad/viento (o Inurritza, de lluvia),
-    se vuelve a detectar ese mismo día y se reintenta, igual que con las demás estaciones."""
+    se vuelve a detectar ese mismo día y se reintenta, igual que con las demás estaciones.
+    Lo que siga faltando se rellena con la regla general (ew.rellenar): lluvia de la vecina más
+    cercana y, si no, de Open-Meteo; temperatura, humedad y viento, de Open-Meteo.
+    'lluvia_manual' (mm) sustituye a la lluvia ese día (p. ej. "no llovió")."""
     def leer_principales():
         t = ew.valor_puntual(alm, ESTACION, sens, "temperatura", dia, hora)
         h = ew.valor_puntual(alm, ESTACION, sens, "humedad", dia, hora)
@@ -85,12 +88,10 @@ def leer_dia(cli, alm, sens, dia, hora):
             alm.olvidar(ESTACION, [dia])
             sens.update(nuevos)
             t, h, w = leer_principales()
-    if None in (t, h, w):
-        faltan = [k for k, v in (("temperatura", t), ("humedad", h), ("viento", w)) if v is None]
-        return None, f"sin lectura a las {hora:02d}:00 de " + ", ".join(faltan) + " (Zarautz)"
-
-    dv = ew.valor_puntual(alm, ESTACION, sens, "direccion", dia, hora) if "direccion" in sens else None
-    if dv is None and "direccion" in sens:
+    dv = None
+    if w is not None and "direccion" in sens:
+        dv = ew.valor_puntual(alm, ESTACION, sens, "direccion", dia, hora)
+    if dv is None and w is not None and "direccion" in sens:
         cand = dict(sens["viento"], medida="mean_direction")
         try:
             d = alm.hora(ESTACION, "direccion", {"direccion": cand}, dia, hora)
@@ -100,19 +101,32 @@ def leer_dia(cli, alm, sens, dia, hora):
         except RuntimeError:
             pass
 
-    ll, n = ew.lluvia_24h(alm, ESTACION_LLUVIA, sens, dia, hora)
-    if n < ew.LECTURAS_POR_DIA - 6:
-        nuevo = sensores_parciales(cli, ESTACION_LLUVIA, dia, {"lluvia": ew.MEDIDAS["lluvia"]})
-        if nuevo.get("lluvia") and nuevo["lluvia"] != sens.get("lluvia"):
-            alm.olvidar(ESTACION_LLUVIA, [dia])
-            sens["lluvia"] = nuevo["lluvia"]
-            ll, n = ew.lluvia_24h(alm, ESTACION_LLUVIA, sens, dia, hora)
-    if n == 0:
-        return None, "sin lecturas de lluvia (Inurritza)"
-    if n < ew.LECTURAS_POR_DIA - 6:
-        return None, f"lluvia incompleta en Inurritza ({n}/{ew.LECTURAS_POR_DIA})"
+    minimo = ew.LECTURAS_POR_DIA - 6
+    origen = []
+    if lluvia_manual is not None:
+        ll, n = lluvia_manual, ew.LECTURAS_POR_DIA
+        origen.append("lluvia:manual")
+    else:
+        ll, n = ew.lluvia_24h(alm, ESTACION_LLUVIA, sens, dia, hora)
+        if n < minimo:
+            nuevo = sensores_parciales(cli, ESTACION_LLUVIA, dia, {"lluvia": ew.MEDIDAS["lluvia"]})
+            if nuevo.get("lluvia") and nuevo["lluvia"] != sens.get("lluvia"):
+                alm.olvidar(ESTACION_LLUVIA, [dia])
+                sens["lluvia"] = nuevo["lluvia"]
+                ll, n = ew.lluvia_24h(alm, ESTACION_LLUVIA, sens, dia, hora)
+
+    # Regla general: lluvia de la vecina más cercana a Inurritza (Zizurkil, luego Bidania) y, si no,
+    # de Open-Meteo; temperatura, humedad y viento que falten, de Open-Meteo en las coordenadas de Zarautz.
+    w_kmh = w * 3.6 if w is not None else None
+    if not rellenar_huecos and ew.faltas(t, h, w, n, minimo):
+        return None, "falta " + ew.faltas(t, h, w, n, minimo) + " (Zarautz)"
+    res, motivo = ew.rellenar(cli, alm, ESTACION, dia, hora, t, h, w_kmh, dv, ll, n, minimo,
+                              cod_lluvia=ESTACION_LLUVIA, origen=origen)
+    if res is None:
+        return None, motivo + " (Zarautz)"
+    t, h, w_kmh, dv, ll, origen = res
 
     fila = {"fecha": dia.isoformat(), "temperatura": round(t, 1), "humedad": round(h, 1),
-            "viento": round(w * 3.6, 1), "lluvia": round(ll, 2),
-            "direccion": round(dv) if dv is not None else None}
-    return fila, ""
+            "viento": round(w_kmh, 1), "lluvia": round(ll, 2),
+            "direccion": round(dv) if dv is not None else None, "origen": origen}
+    return fila, (f"rellenado: {origen}" if origen else "")

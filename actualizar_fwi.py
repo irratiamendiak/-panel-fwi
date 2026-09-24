@@ -59,7 +59,10 @@ def hora_solar(fecha):
 HISTORIAL = Path("datos/historial.csv")
 SENSORES = Path("datos/sensores.json")
 SALIDA = Path("docs/data/fwi.json")
-CAMPOS = ["fecha", "estacion", "temperatura", "humedad", "viento", "lluvia", "direccion"]
+CAMPOS = ["fecha", "estacion", "temperatura", "humedad", "viento", "lluvia", "direccion", "origen"]
+# 'origen': qué dato se rellenó y de dónde (vacío = todo medido por la estación). Regla general, en
+# euskalmet_fwi_datos.rellenar(): lluvia de la estación vecina más cercana y, si ninguna, Open-Meteo;
+# temperatura, humedad y viento, de Open-Meteo. Solo se rellenan días con DIAS_ESPERA días de antigüedad.
 # Factores de duración del día por mes (Van Wagner y Pickett, 1985; hemisferio norte)
 DMC_L = [6.5, 7.5, 9.0, 12.8, 13.9, 13.9, 12.4, 10.9, 9.4, 8.0, 7.0, 6.0]
 DC_L = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, 6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
@@ -346,6 +349,7 @@ def leer_historial():
                         "viento": float(r["viento"]),
                         "lluvia": float(r["lluvia"]),
                         "direccion": float(dir_txt) if dir_txt else None,
+                        "origen": ew.origen_de_fila(r),
                     }
                 except (ValueError, KeyError):
                     continue
@@ -357,13 +361,18 @@ def obtener_dia(cli, alm, sensores, cod, dia, dia_fin, hora):
     # En los últimos días se exige la lluvia completa (puede que aún lleguen datos);
     # en los antiguos se admite hasta un 10 % de huecos.
     minimo = ew.LECTURAS_POR_DIA if dia >= dia_fin - timedelta(days=2) else ew.MIN_LLUVIA
-    datos, n, motivo = ew.obtener_dia(cli, alm, sensores, cod, dia, hora, minimo)
+    datos, n, motivo = ew.obtener_dia(cli, alm, sensores, cod, dia, hora, minimo,
+                                      rellenar_huecos=ew.se_puede_rellenar(dia, dia_fin))
     if datos is None:
         return None, motivo + ("; se reintentará" if dia >= dia_fin - timedelta(days=6) else "")
-    t, h, w, ll, dv = datos
-    aviso = "" if n >= ew.LECTURAS_POR_DIA else f" (lluvia: {n}/{ew.LECTURAS_POR_DIA} lecturas)"
+    t, h, w, ll, dv, origen = datos
+    if origen:
+        aviso = f" (rellenado: {origen})"
+    else:
+        aviso = "" if n >= ew.LECTURAS_POR_DIA else f" (lluvia: {n}/{ew.LECTURAS_POR_DIA} lecturas)"
     fila = {"fecha": dia.isoformat(), "temperatura": round(t, 1), "humedad": round(h, 1),
-            "viento": round(w * 3.6, 1), "lluvia": ll, "direccion": round(dv, 0) if dv is not None else None}
+            "viento": round(w * 3.6, 1), "lluvia": ll, "direccion": round(dv, 0) if dv is not None else None,
+            "origen": origen}
     return fila, aviso
 
 
@@ -465,17 +474,20 @@ def descargar_zarautz(cli, alm, sensores, datos, dia_fin, hora, max_dias):
         print(f"{nombre}: sensores incompletos (Zarautz C064 / Inurritza C086), se omite esta ejecución.")
         return 0
     desde = date.fromisoformat(max(existentes)) + timedelta(days=1) if existentes else dia_fin - timedelta(days=max_dias)
+    desde = min(desde, dia_fin - timedelta(days=6))        # reintenta huecos de la última semana
     desde = max(desde, dia_fin - timedelta(days=max_dias))
     nuevas = 0
     dia = desde
     while dia <= dia_fin:
         if dia.isoformat() not in existentes:
-            fila, motivo = zr.leer_dia(cli, alm, sens, dia, hora)
+            fila, motivo = zr.leer_dia(cli, alm, sens, dia, hora,
+                                       rellenar_huecos=ew.se_puede_rellenar(dia, dia_fin))
             if fila:
                 existentes[fila["fecha"]] = fila
                 nuevas += 1
                 print(f"{dia} {nombre}: T={fila['temperatura']} HR={fila['humedad']} "
-                      f"viento={fila['viento']} km/h lluvia={fila['lluvia']} mm dir={fila['direccion']}")
+                      f"viento={fila['viento']} km/h lluvia={fila['lluvia']} mm dir={fila['direccion']}"
+                      + (f" ({motivo})" if motivo else ""))
             else:
                 print(f"{dia} {nombre}: {motivo}")
         dia += timedelta(days=1)
@@ -494,6 +506,7 @@ def descargar_altzola(cli, alm, sensores, datos, dia_fin, hora, max_dias):
         print(f"{nombre}: sensores incompletos (Altzola C078), se omite esta ejecución.")
         return 0
     desde = date.fromisoformat(max(existentes)) + timedelta(days=1) if existentes else dia_fin - timedelta(days=max_dias)
+    desde = min(desde, dia_fin - timedelta(days=6))        # reintenta huecos de la última semana
     desde = max(desde, dia_fin - timedelta(days=max_dias))
     faltan = [desde + timedelta(days=k) for k in range((dia_fin - desde).days + 1)
               if (desde + timedelta(days=k)).isoformat() not in existentes]
@@ -508,12 +521,14 @@ def descargar_altzola(cli, alm, sensores, datos, dia_fin, hora, max_dias):
     for dia in faltan:
         e = pv.entradas_dia(tabla, dia, hora)
         viento = (e[2], e[3]) if e else None
-        fila, motivo = az.leer_dia(cli, alm, sens, dia, hora, viento)
+        fila, motivo = az.leer_dia(cli, alm, sens, dia, hora, viento,
+                                   rellenar_huecos=ew.se_puede_rellenar(dia, dia_fin))
         if fila:
             existentes[fila["fecha"]] = fila
             nuevas += 1
             print(f"{dia} {nombre}: T={fila['temperatura']} HR={fila['humedad']} "
-                  f"viento={fila['viento']} km/h (Open-Meteo) lluvia={fila['lluvia']} mm dir={fila['direccion']}")
+                  f"viento={fila['viento']} km/h (Open-Meteo) lluvia={fila['lluvia']} mm dir={fila['direccion']}"
+                  + (f" ({motivo})" if motivo else ""))
         else:
             print(f"{dia} {nombre}: {motivo}")
     return nuevas
@@ -595,7 +610,8 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
     for nombre in orden:
         filas = [datos[nombre][k] for k in sorted(datos[nombre])]
         filas_csv += [[f["fecha"], nombre, f["temperatura"], f["humedad"], f["viento"], f["lluvia"],
-                       f.get("direccion") if f.get("direccion") is not None else ""] for f in filas]
+                       f.get("direccion") if f.get("direccion") is not None else "",
+                       f.get("origen", "")] for f in filas]
         estados[nombre] = {}
         cascadas[nombre] = cascada(filas, inicial, estados[nombre])
     filas_csv.sort(key=lambda r: (r[0], orden.index(r[1])))
