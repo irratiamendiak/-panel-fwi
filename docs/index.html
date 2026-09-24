@@ -47,6 +47,12 @@ section{margin-bottom:22px}
 .st:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .st[aria-pressed="true"]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
 .st-name{font-family:var(--f-head);font-weight:700;font-size:16px}
+.st{position:relative}
+.info-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:6px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font:italic 700 12px/1 Georgia,serif;cursor:pointer;vertical-align:2px}
+.info-i:hover,.info-i[aria-expanded="true"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.info-i:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.info-pop{position:absolute;left:8px;right:8px;top:38px;z-index:5;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:400 13px/1.45 var(--f-body);box-shadow:0 8px 24px rgba(0,0,0,.22);cursor:auto;white-space:normal}
+.info-pop[hidden]{display:none}
 .st-head{display:flex;align-items:baseline;gap:8px}
 .st-val{font-family:var(--f-head);font-weight:800;font-size:44px;line-height:1;letter-spacing:-0.03em;font-variant-numeric:tabular-nums}
 .st-isi{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
@@ -274,7 +280,9 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const atras = esISO(u.fecha) ? Math.round((hoy - fecha(u.fecha))/864e5) : 0;
       const viejo = atras > 2;
       const insigniaEredua = est.modelo ? '<span class="chip eredua">🖥️ eredua</span>' : '';
-      const notaEst = est.nota ? '<span class="st-date">ℹ️ '+est.nota+'</span>' : '';
+      // La nota (Zarautz, Altzola...) no alarga la tarjeta: se abre al pulsar la "i", superpuesta.
+      const infoI = est.nota ? `<span class="info-i" role="button" tabindex="0" aria-label="Informazioa" aria-expanded="false" data-info="${i}">i</span>` : '';
+      const notaEst = est.nota ? `<span class="info-pop" id="info-${i}" role="tooltip" hidden>${est.nota}</span>` : '';
       const p1 = conPrevision(est).prev[0];
       const linPrev = p1 ? `<span class="st-prev">Iragarpena ${fmtFecha(p1.fecha)}: <b>${fmt(p1.fwi)}</b> (${fmt(p1.min,0)}–${fmt(p1.max,0)})</span>` : '';
       const extra = u.calentando ? '<span class="st-date">† berotzen: fidagarritasun gutxikoa</span>'
@@ -285,7 +293,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const linDatos = `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
       const insigniaResumen = est.resumen ? '<span class="chip resumen">📐 Gipuzkoako batez bestekoa</span>' : '';
       return `<button class="st${est.modelo?' eredua':''}${est.resumen?' resumen':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
-        <span class="st-name">${est.nombre}</span>
+        <span class="st-name">${est.nombre}${infoI}</span>
         <span class="st-head"><span class="st-val">${fmt(u.fwi)}</span><span class="st-isi">ISI ${fmt(u.isi)} · DC ${fmt(u.dc)}</span></span>
         <span class="chip" style="background:${col.c};color:${col.fg}">${claseEu(u.clase)}</span>
         ${insigniaEredua}${insigniaResumen}
@@ -423,7 +431,33 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     btn.textContent = todo ? 'Ikusi azken '+DIAS_POR_DEFECTO+' egunak soilik' : 'Ikusi historial osoa ('+est.dias.length+' egun)';
   }
 
+  function cerrarInfos(excepto){
+    document.querySelectorAll('.info-i[aria-expanded="true"]').forEach(x => {
+      if (x === excepto) return;
+      x.setAttribute('aria-expanded', 'false');
+      const pop = document.getElementById('info-'+x.dataset.info);
+      if (pop) pop.hidden = true;
+    });
+  }
+  function alternarInfo(x){
+    const pop = document.getElementById('info-'+x.dataset.info);
+    if (!pop) return;
+    cerrarInfos(x);
+    const abrir = pop.hidden;
+    pop.hidden = !abrir;
+    x.setAttribute('aria-expanded', String(abrir));
+  }
+  $('#stations').addEventListener('keydown', e => {
+    const x = e.target.closest('.info-i');
+    if (x && (e.key === 'Enter' || e.key === ' ')){ e.preventDefault(); e.stopPropagation(); alternarInfo(x); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarInfos(); });
+  document.addEventListener('click', e => { if (!e.target.closest('.info-i, .info-pop')) cerrarInfos(); });
+
   $('#stations').addEventListener('click', e => {
+    const x = e.target.closest('.info-i');
+    if (x){ e.stopPropagation(); alternarInfo(x); return; }   // la "i" no cambia la estación seleccionada
+    if (e.target.closest('.info-pop')) return;                 // pulsar dentro del texto tampoco
     const b = e.target.closest('[data-st]');
     if (!b || !DATA) return;
     sel = +b.dataset.st; todo = false;
