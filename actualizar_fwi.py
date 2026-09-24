@@ -62,10 +62,12 @@ SALIDA = Path("docs/data/fwi.json")
 CAMPOS = ["fecha", "estacion", "temperatura", "humedad", "viento", "lluvia", "direccion", "origen"]
 # 'origen': qué dato se rellenó y de dónde (vacío = todo medido por la estación). Regla general, en
 # euskalmet_fwi_datos.rellenar(): lluvia de la estación vecina más cercana y, si ninguna, Open-Meteo;
-# temperatura, humedad y viento, de Open-Meteo. Solo se rellenan días con DIAS_ESPERA días de antigüedad.
+# temperatura, humedad y viento, de Open-Meteo. Se aplica en cuanto pasa MARGEN_PUBLICACION tras la hora
+# del dato (antes, lo que falta puede estar aún por publicarse y se reintenta).
 # Factores de duración del día por mes (Van Wagner y Pickett, 1985; hemisferio norte)
 DMC_L = [6.5, 7.5, 9.0, 12.8, 13.9, 13.9, 12.4, 10.9, 9.4, 8.0, 7.0, 6.0]
 DC_L = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, 6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
+MARGEN_PUBLICACION = timedelta(minutes=100)   # tras la hora del dato, tiempo que se espera a que se publique todo
 HUECO_MAX = 14       # días: con un hueco mayor entre dos lecturas se reinician los códigos
 CALENTAMIENTO = 45   # días tras un reinicio (o el inicio del histórico) con valores aún poco fiables
 COORD = {   # nombre: (latitud, longitud, altitud)
@@ -392,13 +394,26 @@ def leer_historial():
     return datos
 
 
+def dato_publicado(dia, hora):
+    """True si ya pasó MARGEN_PUBLICACION desde la hora del dato de ese día: lo que falte ya no va a
+    llegar, así que se puede aplicar la regla de relleno (estación vecina / Open-Meteo) sin esperar."""
+    return datetime.now(ZONA) >= datetime.combine(dia, datetime.min.time()).replace(hour=hora, tzinfo=ZONA) + MARGEN_PUBLICACION
+
+
 def obtener_dia(cli, alm, sensores, cod, dia, dia_fin, hora):
     """Devuelve (fila, mensaje). fila es None si no se puede guardar todavía."""
-    # En los últimos días se exige la lluvia completa (puede que aún lleguen datos);
-    # en los antiguos se admite hasta un 10 % de huecos.
-    minimo = ew.LECTURAS_POR_DIA if dia >= dia_fin - timedelta(days=2) else ew.MIN_LLUVIA
+    # Lluvia de 24 h: en los últimos días se exige completa (144 lecturas) mientras Euskalmet puede
+    # estar publicando todavía, es decir, durante MARGEN_PUBLICACION tras la hora del dato. Pasado ese
+    # margen, las lecturas que faltan ya no van a llegar: se acepta con hasta 6 perdidas (una hora), como
+    # en los históricos. En días más antiguos se admite hasta un 10 % de huecos (MIN_LLUVIA).
+    publicado = dato_publicado(dia, hora)
+    if dia >= dia_fin - timedelta(days=2):
+        minimo = ew.LECTURAS_POR_DIA - 6 if publicado else ew.LECTURAS_POR_DIA
+    else:
+        minimo = ew.MIN_LLUVIA
+    # Pasado el margen de publicación se aplica ya la regla de relleno (antes solo con 3 días de antigüedad)
     datos, n, motivo = ew.obtener_dia(cli, alm, sensores, cod, dia, hora, minimo,
-                                      rellenar_huecos=ew.se_puede_rellenar(dia, dia_fin))
+                                      rellenar_huecos=publicado)
     if datos is None:
         return None, motivo + ("; se reintentará" if dia >= dia_fin - timedelta(days=6) else "")
     t, h, w, ll, dv, origen = datos
@@ -517,7 +532,7 @@ def descargar_zarautz(cli, alm, sensores, datos, dia_fin, hora, max_dias):
     while dia <= dia_fin:
         if dia.isoformat() not in existentes:
             fila, motivo = zr.leer_dia(cli, alm, sens, dia, hora,
-                                       rellenar_huecos=ew.se_puede_rellenar(dia, dia_fin))
+                                       rellenar_huecos=dato_publicado(dia, hora))
             if fila:
                 existentes[fila["fecha"]] = fila
                 nuevas += 1
@@ -558,7 +573,7 @@ def descargar_altzola(cli, alm, sensores, datos, dia_fin, hora, max_dias):
         e = pv.entradas_dia(tabla, dia, hora)
         viento = (e[2], e[3]) if e else None
         fila, motivo = az.leer_dia(cli, alm, sens, dia, hora, viento,
-                                   rellenar_huecos=ew.se_puede_rellenar(dia, dia_fin))
+                                   rellenar_huecos=dato_publicado(dia, hora))
         if fila:
             existentes[fila["fecha"]] = fila
             nuevas += 1
