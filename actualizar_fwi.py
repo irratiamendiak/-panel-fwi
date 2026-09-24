@@ -69,6 +69,7 @@ DMC_L = [6.5, 7.5, 9.0, 12.8, 13.9, 13.9, 12.4, 10.9, 9.4, 8.0, 7.0, 6.0]
 DC_L = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, 6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
 MARGEN_PUBLICACION = timedelta(minutes=100)   # tras la hora del dato, tiempo que se espera a que se publique todo
 REGISTRO_PREVISIONES = Path("datos/previsiones.csv")
+HISTORICO_WEB = Path("docs/data/historico.json")   # historial completo para consultar cualquier día en la web
 HUECO_MAX = 14       # días: con un hueco mayor entre dos lecturas se reinician los códigos
 CALENTAMIENTO = 45   # días tras un reinicio (o el inicio del histórico) con valores aún poco fiables
 COORD = {   # nombre: (latitud, longitud, altitud)
@@ -686,6 +687,36 @@ def registrar_previsiones(previsiones, ahora):
             w.writerow({c: filas[k].get(c, "") for c in campos})
 
 
+def escribir_historico(cascadas, ref, orden_json):
+    """docs/data/historico.json: todos los días de cada estación (y GIPUZKOA) desde el principio, en
+    columnas compactas, para que la web pueda enseñar la situación de cualquier fecha (mapa, tarjetas
+    e informe). La web solo lo descarga si se elige una fecha anterior a las que trae fwi.json."""
+    salida = {"version": 1, "estaciones": {}}
+    for nombre in orden_json:
+        dias = cascadas.get(nombre) or []
+        if not dias:
+            continue
+        ini = date.fromisoformat(dias[0]["fecha"])
+        n = (date.fromisoformat(dias[-1]["fecha"]) - ini).days + 1
+        cols = {k: [None] * n for k in ("fwi", "pct", "T", "H", "W", "R", "dir", "isi", "dc", "cal", "cob")}
+        for d in dias:
+            i = (date.fromisoformat(d["fecha"]) - ini).days
+            v = ref.get((nombre, int(d["fecha"][5:7])))
+            cols["fwi"][i] = d["fwi"]
+            cols["pct"][i] = rango_percentil(v, d["fwi"]) if (v and len(v) >= 30 and not d.get("calentando")) else None
+            for k in ("T", "H", "W", "R", "isi", "dc"):
+                x = d.get(k)
+                cols[k][i] = round(x, 1) if isinstance(x, (int, float)) else None
+            cols["dir"][i] = round(d["dir"]) if isinstance(d.get("dir"), (int, float)) else None
+            cols["cal"][i] = 1 if d.get("calentando") else 0
+            cols["cob"][i] = d.get("cobertura")
+        # columnas que no tienen ningún dato (p. ej. viento en GIPUZKOA) no se publican
+        salida["estaciones"][nombre] = {"inicio": ini.isoformat(),
+                                        **{k: v for k, v in cols.items() if any(x is not None for x in v)}}
+    HISTORICO_WEB.parent.mkdir(parents=True, exist_ok=True)
+    HISTORICO_WEB.write_text(json.dumps(salida, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
 def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
     orden = list(ew.ESTACIONES) + list(NOMBRES_EXTRA) + list(MODELO_ESTACIONES)
     filas_csv = []
@@ -714,6 +745,10 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
         orden_json = ["Gipuzkoa"] + orden_json   # Gipuzkoa siempre la primera, delante del alfabeto
 
     ref = referencia(cascadas)
+    try:
+        escribir_historico(cascadas, ref, orden_json)
+    except (OSError, ValueError, KeyError) as e:   # nunca debe impedir publicar el panel
+        print("No se ha podido escribir el histórico de la web:", e)
     clim = {}
     for (nombre, mes), v in ref.items():
         if len(v) >= 30:
