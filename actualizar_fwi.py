@@ -116,8 +116,39 @@ DIAS_JSON = 400      # días recientes que se publican en la web
 # 2,7 veces más incendios (intervalo 95 %: unos 2,3-3,3). El umbral de 3 km/h fue el que mejor ajustaba;
 # los valores por rango de FWI (x2,8 con FWI < 11,2; x2,4 entre 11,2 y 38) no difieren significativamente,
 # así que se usa un único multiplicador. Es una estimación orientativa, no un factor exacto.
-MULT_VIENTO_SUR = 2.7
+MULT_VIENTO_SUR = 1.6   # una vez descontado el efecto de la época (ver IFG); sin descontarlo salía x2,7
 VIENTO_SUR_MIN = 3.0   # km/h
+
+# ---- Índice adaptado a Gipuzkoa (IFG): cuántas veces más probable es un incendio ese día que en un
+# día medio, según el FWI, la época del año y el viento sur. Regresión de Poisson calibrada con el EGIF
+# 2010-2025 (497 incendios, 63.837 días-estación, histórico al mediodía solar) y validada con 2020-2025:
+#   tasa = exp(B0 + B1*ln(1+FWI) + B_EPOCA*[diciembre-abril] + B_SUR*[viento SE-S-SO >= 3 km/h])
+#   IFG  = tasa / TASA_MEDIA
+# Con el mismo FWI, de diciembre a abril hay 3,2 veces más incendios (x2,6-3,9) y con viento sur 1,6 veces
+# más (x1,3-2,0). Los niveles son múltiplos de un día medio: <0,5 / 0,5-1 / 1-2 / 2-4 / 4-8 / >=8.
+IFG_B0, IFG_B1, IFG_B_EPOCA, IFG_B_SUR = -7.335, 1.122, 1.156, 0.479
+IFG_TASA_MEDIA = 497 / 63837
+IFG_MESES_ALTOS = (12, 1, 2, 3, 4)
+IFG_CLASES = [("Muy bajo", 0.5), ("Bajo", 1.0), ("Moderado", 2.0), ("Alto", 4.0), ("Muy alto", 8.0), ("Extremo", math.inf)]
+
+
+def hay_viento_sur(sur, W):
+    return sur is not None and sur >= 0.5 and (W is None or W >= VIENTO_SUR_MIN)
+
+
+def ifg_calc(fwi, fecha, sur, W):
+    """Índice adaptado a Gipuzkoa: múltiplo de la tasa de incendios de un día medio."""
+    mes = int(str(fecha)[5:7])
+    x = IFG_B0 + IFG_B1 * math.log1p(max(fwi, 0.0)) + (IFG_B_EPOCA if mes in IFG_MESES_ALTOS else 0.0) \
+        + (IFG_B_SUR if hay_viento_sur(sur, W) else 0.0)
+    return math.exp(x) / IFG_TASA_MEDIA
+
+
+def clase_ifg(v):
+    for nombre, tope in IFG_CLASES:
+        if v < tope:
+            return nombre
+    return IFG_CLASES[-1][0]
 CLASES = [("Muy bajo", 5.2), ("Bajo", 11.2), ("Moderado", 21.3),
           ("Alto", 38.0), ("Muy alto", 50.0), ("Extremo", math.inf)]
 
@@ -260,6 +291,8 @@ def cascada(filas, inicial, estado=None):
             "ffmc": round(F, 1), "dmc": round(M, 1), "dc": round(D, 1),
             "isi": round(isi, 1), "bui": round(bui, 1), "fwi": round(fwi, 1),
             "clase": clase(fwi), "hueco": hueco, "mult_viento": mult_viento(fwi, sur, W),
+            "ifg": round(ifg_calc(fwi, f["fecha"], sur, W), 2),
+            "clase_ifg": clase_ifg(ifg_calc(fwi, f["fecha"], sur, W)),
             "calentando": (d - inicio).days < CALENTAMIENTO,
         })
     if estado is not None and prev is not None:      # último estado real, sin redondear, para la previsión
@@ -300,7 +333,7 @@ def media_ponderada(cascadas, pesos, cobertura_minima=0.30):
             if d["calentando"]:
                 continue
             por_fecha.setdefault(d["fecha"], {})[nombre] = d
-    VARS = ("ffmc", "dmc", "dc", "isi", "bui", "fwi")   # solo índices: no se promedian T, HR ni lluvia
+    VARS = ("ffmc", "dmc", "dc", "isi", "bui", "fwi", "ifg")   # solo índices: no se promedian T, HR ni lluvia
     salida = []
     for fecha in sorted(por_fecha):
         dias = por_fecha[fecha]
@@ -314,6 +347,7 @@ def media_ponderada(cascadas, pesos, cobertura_minima=0.30):
             "ffmc": round(prom["ffmc"], 1), "dmc": round(prom["dmc"], 1), "dc": round(prom["dc"], 1),
             "isi": round(prom["isi"], 1), "bui": round(prom["bui"], 1), "fwi": round(prom["fwi"], 1),
             "clase": clase(prom["fwi"]), "hueco": False, "calentando": False,
+            "ifg": round(prom["ifg"], 2), "clase_ifg": clase_ifg(prom["ifg"]),
             "cobertura": round(100 * peso_dia / total),
         })
     return salida
@@ -335,7 +369,7 @@ def prevision_media(previsiones, pesos, ref, cobertura_minima=0.30):
         for f in filas:
             if not f.get("calentando"):
                 por_fecha.setdefault(f["fecha"], {})[nombre] = f
-    VARS = ("ffmc", "dmc", "dc", "isi", "bui", "fwi", "min", "max")
+    VARS = ("ffmc", "dmc", "dc", "isi", "bui", "fwi", "min", "max", "ifg")
     salida = []
     for fecha in sorted(por_fecha):
         dias = por_fecha[fecha]
@@ -350,6 +384,7 @@ def prevision_media(previsiones, pesos, ref, cobertura_minima=0.30):
             "T": None, "H": None, "W": None, "R": None, "dir": None, "sur": None, "mult_viento": None,
             **{k: round(prom[k], 1) for k in VARS},
             "clase": clase(fwi), "pct": rango_percentil(v, fwi) if (v and len(v) >= 30) else None,
+            "clase_ifg": clase_ifg(prom["ifg"]),
             "calentando": False, "lluvia_medida_h": None, "cobertura": round(100 * peso_dia / total),
         })
     return salida
@@ -653,6 +688,8 @@ def crear_previsor(alm, sensores, hora):
                         "ffmc": round(F, 1), "dmc": round(M, 1), "dc": round(D, 1), "isi": round(isi, 1), "bui": round(bui, 1),
                         "fwi": round(fwi, 1), "min": round(lo, 1), "max": round(hi, 1), "clase": clase(fwi),
                         "mult_viento": mult_viento(fwi, sur, W),
+                        "ifg": round(ifg_calc(fwi, dia.isoformat(), sur, W), 2),
+                        "clase_ifg": clase_ifg(ifg_calc(fwi, dia.isoformat(), sur, W)),
                         "pct": rango_percentil(v, fwi) if (v and len(v) >= 30 and not est["calentando"]) else None,
                         "calentando": est["calentando"], "lluvia_medida_h": medidas})
                 dia += timedelta(days=1)
@@ -668,7 +705,7 @@ def registrar_previsiones(previsiones, ahora):
     """Guarda en datos/previsiones.csv la previsión emitida hoy, para poder compararla después con el
     FWI medido (fiabilidad a 1, 2 y 3 días). Una fila por (día de emisión, estación, día previsto):
     si el proceso corre varias veces el mismo día, se queda la última previsión de ese día."""
-    campos = ["emitida", "estacion", "fecha", "adelanto", "fwi", "min", "max", "clase", "calculado"]
+    campos = ["emitida", "estacion", "fecha", "adelanto", "fwi", "min", "max", "clase", "calculado", "ifg", "clase_ifg"]
     hoy = ahora.date()
     filas = {}
     if REGISTRO_PREVISIONES.exists():
@@ -686,7 +723,7 @@ def registrar_previsiones(previsiones, ahora):
             filas[(hoy.isoformat(), nombre, pr["fecha"])] = {
                 "emitida": hoy.isoformat(), "estacion": nombre, "fecha": pr["fecha"], "adelanto": adelanto,
                 "fwi": pr.get("fwi"), "min": pr.get("min"), "max": pr.get("max"), "clase": pr.get("clase"),
-                "calculado": 1 if pr.get("k") == 0 else 0}
+                "calculado": 1 if pr.get("k") == 0 else 0, "ifg": pr.get("ifg"), "clase_ifg": pr.get("clase_ifg")}
     REGISTRO_PREVISIONES.parent.mkdir(parents=True, exist_ok=True)
     with open(REGISTRO_PREVISIONES, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=campos, lineterminator="\n")
@@ -706,12 +743,13 @@ def escribir_historico(cascadas, ref, orden_json):
             continue
         ini = date.fromisoformat(dias[0]["fecha"])
         n = (date.fromisoformat(dias[-1]["fecha"]) - ini).days + 1
-        cols = {k: [None] * n for k in ("fwi", "pct", "T", "H", "W", "R", "dir", "isi", "dc", "cal", "cob")}
+        cols = {k: [None] * n for k in ("fwi", "pct", "T", "H", "W", "R", "dir", "isi", "dc", "cal", "cob", "ifg")}
         for d in dias:
             i = (date.fromisoformat(d["fecha"]) - ini).days
             v = ref.get((nombre, int(d["fecha"][5:7])))
             cols["fwi"][i] = d["fwi"]
             cols["pct"][i] = rango_percentil(v, d["fwi"]) if (v and len(v) >= 30 and not d.get("calentando")) else None
+            cols["ifg"][i] = d.get("ifg")
             for k in ("T", "H", "W", "R", "isi", "dc"):
                 x = d.get(k)
                 cols[k][i] = round(x, 1) if isinstance(x, (int, float)) else None
