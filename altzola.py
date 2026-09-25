@@ -70,10 +70,16 @@ def leer_dia(cli, alm, sens, dia, hora, viento, lluvia_manual=None, rellenar_hue
                 sens["lluvia"] = nuevo["lluvia"]
                 ll, n = ew.lluvia_24h(alm, ESTACION, sens, dia, hora)
 
-    # Regla general: lluvia de la vecina más cercana (Arrasate, luego Bidania) y, si no, de Open-Meteo;
-    # temperatura y humedad que falten, de Open-Meteo en las coordenadas de Altzola.
     if not rellenar_huecos and ew.faltas(t, h, w, n, minimo):
         return None, "falta " + ew.faltas(t, h, w, n, minimo) + " (Altzola)"
+    # 1) temperatura y humedad que falten a la hora exacta: valor más desfavorable de Altzola en ±50 min
+    #    (el viento no: es siempre del modelo)
+    vals = {"temperatura": t, "humedad": h}
+    _, notas = ew.completar_ventana(alm, ESTACION, sens, dia, hora, vals, None)
+    t, h = vals["temperatura"], vals["humedad"]
+    origen += notas
+    # 2) regla general: lluvia de la vecina más cercana (Arrasate, luego Bidania) y, si no, de Open-Meteo;
+    #    temperatura y humedad que sigan faltando, de Open-Meteo.
     res, motivo = ew.rellenar(cli, alm, ESTACION, dia, hora, t, h, w, dv, ll, n, minimo, origen=origen)
     if res is None:
         return None, motivo + " (Altzola)"

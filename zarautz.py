@@ -53,8 +53,7 @@ def asegurar_sensores(cli, sens, dia, alm=None, hora=None):
             candidato = dict(sens["viento"], medida="mean_direction")
         if candidato and alm is not None and hora is not None:
             try:
-                d = alm.hora(ESTACION, "direccion", {"direccion": candidato}, dia, hora)
-                if d.get((hora, 0)) is not None:
+                if ew.valor_puntual(alm, ESTACION, {"direccion": candidato}, "direccion", dia, hora) is not None:
                     sens["direccion"] = candidato
             except RuntimeError:
                 pass
@@ -94,8 +93,7 @@ def leer_dia(cli, alm, sens, dia, hora, lluvia_manual=None, rellenar_huecos=True
     if dv is None and w is not None and "direccion" in sens:
         cand = dict(sens["viento"], medida="mean_direction")
         try:
-            d = alm.hora(ESTACION, "direccion", {"direccion": cand}, dia, hora)
-            if d.get((hora, 0)) is not None:
+            if ew.valor_puntual(alm, ESTACION, {"direccion": cand}, "direccion", dia, hora) is not None:
                 sens["direccion"] = cand
                 dv = ew.valor_puntual(alm, ESTACION, sens, "direccion", dia, hora)
         except RuntimeError:
@@ -115,11 +113,16 @@ def leer_dia(cli, alm, sens, dia, hora, lluvia_manual=None, rellenar_huecos=True
                 sens["lluvia"] = nuevo["lluvia"]
                 ll, n = ew.lluvia_24h(alm, ESTACION_LLUVIA, sens, dia, hora)
 
-    # Regla general: lluvia de la vecina más cercana a Inurritza (Zizurkil, luego Bidania) y, si no,
-    # de Open-Meteo; temperatura, humedad y viento que falten, de Open-Meteo en las coordenadas de Zarautz.
-    w_kmh = w * 3.6 if w is not None else None
     if not rellenar_huecos and ew.faltas(t, h, w, n, minimo):
         return None, "falta " + ew.faltas(t, h, w, n, minimo) + " (Zarautz)"
+    # 1) lo que falte a la hora exacta: valor más desfavorable de Zarautz en ±50 min
+    vals = {"temperatura": t, "humedad": h, "viento": w}
+    dv, notas = ew.completar_ventana(alm, ESTACION, sens, dia, hora, vals, dv)
+    t, h, w = vals["temperatura"], vals["humedad"], vals["viento"]
+    origen += notas
+    # 2) regla general: lluvia de la vecina más cercana a Inurritza (Zizurkil, luego Bidania) y, si no,
+    #    de Open-Meteo; temperatura, humedad y viento que sigan faltando, de Open-Meteo.
+    w_kmh = w * 3.6 if w is not None else None
     res, motivo = ew.rellenar(cli, alm, ESTACION, dia, hora, t, h, w_kmh, dv, ll, n, minimo,
                               cod_lluvia=ESTACION_LLUVIA, origen=origen)
     if res is None:

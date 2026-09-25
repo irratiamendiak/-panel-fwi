@@ -62,12 +62,17 @@ SALIDA = Path("docs/data/fwi.json")
 CAMPOS = ["fecha", "estacion", "temperatura", "humedad", "viento", "lluvia", "direccion", "origen"]
 # 'origen': qué dato se rellenó y de dónde (vacío = todo medido por la estación). Regla general, en
 # euskalmet_fwi_datos.rellenar(): lluvia de la estación vecina más cercana y, si ninguna, Open-Meteo;
-# temperatura, humedad y viento, de Open-Meteo. Se aplica en cuanto pasa MARGEN_PUBLICACION tras la hora
-# del dato (antes, lo que falta puede estar aún por publicarse y se reintenta).
+# temperatura, humedad y viento: el valor más desfavorable de la propia estación en ±50 min y, si no hay,
+# Open-Meteo. Se aplica en cuanto pasa MARGEN_PUBLICACION tras la hora del dato (antes, lo que falta puede
+# estar aún por publicarse y se reintenta).
 # Factores de duración del día por mes (Van Wagner y Pickett, 1985; hemisferio norte)
 DMC_L = [6.5, 7.5, 9.0, 12.8, 13.9, 13.9, 12.4, 10.9, 9.4, 8.0, 7.0, 6.0]
 DC_L = [-1.6, -1.6, -1.6, 0.9, 3.8, 5.8, 6.4, 5.0, 2.4, 0.4, -1.6, -1.6]
-MARGEN_PUBLICACION = timedelta(minutes=100)   # tras la hora del dato, tiempo que se espera a que se publique todo
+# Tras la hora del dato (14:00 en verano, 13:00 en invierno) se espera hasta 60 minutos a que Euskalmet
+# publique todo. A partir de ahí (15:00 / 14:00) el día se cierra SIEMPRE con el dato de la hora del dato:
+# lo que falte se completa con la regla (ventana de ±50 min de la propia estación, estación vecina para
+# la lluvia y, en último caso, Open-Meteo). Nunca se usan lecturas de horas posteriores.
+MARGEN_PUBLICACION = timedelta(minutes=60)
 REGISTRO_PREVISIONES = Path("datos/previsiones.csv")
 HISTORICO_WEB = Path("docs/data/historico.json")   # historial completo para consultar cualquier día en la web
 HUECO_MAX = 14       # días: con un hueco mayor entre dos lecturas se reinician los códigos
@@ -472,9 +477,10 @@ def lluvia_con_observada(alm, cod, sens, horas):
     medir usan la previsión. Devuelve (mm, horas_medidas)."""
     total, medidas = 0.0, 0
     for ts, prev_mm in horas:
-        b = datetime.strptime(ts, "%Y-%m-%dT%H:%M") - timedelta(hours=1)
-        d = alm.hora(cod, "lluvia", sens, b.date(), b.hour)
-        trozos = [d.get((b.hour, m)) for m in range(0, 60, 10)]
+        b = datetime.strptime(ts, "%Y-%m-%dT%H:%M") - timedelta(hours=1)   # hora oficial (Open-Meteo)
+        du, hu, _ = ew.a_utc(b.date(), b.hour)                              # Euskalmet va en UTC
+        d = alm.hora(cod, "lluvia", sens, du, hu)
+        trozos = [d.get((hu, m)) for m in range(0, 60, 10)]
         if all(x is not None for x in trozos):
             total += sum(float(x) for x in trozos)
             medidas += 1

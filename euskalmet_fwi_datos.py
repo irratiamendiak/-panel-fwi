@@ -15,8 +15,9 @@ listo para importar en el panel.
 Regla para datos que faltan (igual en todas las estaciones):
   * lluvia: se toma de la estación vecina más cercana que la tenga completa (VECINAS_LLUVIA);
     si ninguna la tiene (fallo general), de Open-Meteo.
-  * temperatura, humedad y viento (con su dirección): de Open-Meteo en las coordenadas de la
-    propia estación (COORDENADAS).
+  * temperatura, humedad y viento (con su dirección): primero, el valor más desfavorable de la propia
+    estación en ±50 min de la hora del dato (humedad mínima, temperatura y viento máximos); si no hay
+    ninguno, Open-Meteo en las coordenadas de la estación (COORDENADAS).
 La columna 'origen' dice qué se ha rellenado y de dónde, p. ej. "humedad:Open-Meteo; lluvia:Zizurkil".
 Vacía = todo medido por la propia estación.
 
@@ -61,7 +62,8 @@ import json
 import re
 import sys
 import time
-from datetime import date, datetime, time as hora_t, timedelta
+from datetime import date, datetime, time as hora_t, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import jwt        # PyJWT
@@ -235,8 +237,7 @@ def intentar_direccion(cli: Cliente, alm: "Almacen", sensores: dict, cod: str, d
     if not candidato:
         return False
     try:
-        d = alm.hora(cod, "direccion", {"direccion": candidato}, dia, hora)
-        dv_prueba = d.get((hora, 0))
+        dv_prueba = valor_puntual(alm, cod, {"direccion": candidato}, "direccion", dia, hora)
     except RuntimeError:
         dv_prueba = None
     if dv_prueba is None:
@@ -346,15 +347,97 @@ class Almacen:
         self.pedidas = {x for x in self.pedidas if not (x[0][0] == cod and x[0][2] in dias)}
 
 
+# ---------------------------------------------------------------- horas: local frente a UTC
+# IMPORTANTE: la API de Euskalmet (y los XML de Open Data) dan las horas en UTC. En todo el código la
+# hora del dato se maneja en hora OFICIAL de Euskadi (13:00 en invierno, 14:00 en verano = mediodía
+# solar = 12:00 UTC), y se convierte a UTC justo al pedir lecturas a Euskalmet. Open-Meteo se pide
+# con timezone=Europe/Madrid, así que ahí se usa la hora local tal cual.
+ZONA = ZoneInfo("Europe/Madrid")
+
+
+def hora_solar(d):
+    """Mediodía solar de Gipuzkoa (12:00 UTC) en hora oficial: 14 con horario de verano, 13 sin él."""
+    return 14 if datetime(d.year, d.month, d.day, 12, tzinfo=ZONA).dst() else 13
+
+
+def a_utc(dia, hh, mm=0):
+    """Hora oficial de Euskadi -> (fecha, hora, minuto) en UTC, que es como las sirve Euskalmet."""
+    t = datetime(dia.year, dia.month, dia.day, hh, mm, tzinfo=ZONA).astimezone(timezone.utc)
+    return t.date(), t.hour, t.minute
+
+
+def a_local(dia_utc, hh, mm=0):
+    """(fecha, hora, minuto) UTC -> texto 'HH:MM' en hora oficial de Euskadi."""
+    t = datetime(dia_utc.year, dia_utc.month, dia_utc.day, hh, mm, tzinfo=timezone.utc).astimezone(ZONA)
+    return t.strftime("%H:%M")
+
+
 def valor_puntual(alm, cod, sens, var, dia, hora):
-    d = alm.hora(cod, var, sens, dia, hora)
-    v = d.get((hora, 0))
+    """Lectura de 'var' a la hora OFICIAL 'hora' de ese día (se pide a Euskalmet en UTC)."""
+    du, hu, _ = a_utc(dia, hora)
+    d = alm.hora(cod, var, sens, du, hu)
+    v = d.get((hu, 0))
     return float(v) if v is not None else None
 
 
+# Si falta la lectura exacta de la hora del dato, se busca en la propia estación dentro de la ventana
+# HH-1:10 .. HH:50 (±50 min) el valor más desfavorable para el riesgo: la humedad más baja, la
+# temperatura más alta y el viento más alto. Solo si en la ventana no hay nada, se va a Open-Meteo.
+VENTANA = {"temperatura": max, "humedad": min, "viento": max}
+
+
+def valor_ventana(alm, cod, sens, var, dia, hora):
+    """(valor, 'HH:MM' en hora oficial) más desfavorable de 'var' entre HH-1:10 y HH:50 (hora oficial)
+    de ese día, o (None, None)."""
+    if var not in sens or var not in VENTANA:
+        return None, None
+    du, hu, _ = a_utc(dia, hora)
+    cand = []
+    for hh, minutos in ((hu - 1, range(10, 60, 10)), (hu, range(0, 60, 10))):
+        try:
+            d = alm.hora(cod, var, sens, du, hh)
+        except RuntimeError:
+            continue
+        for m in minutos:
+            v = d.get((hh, m))
+            if v is not None:
+                cand.append((float(v), a_local(du, hh, m)))
+    if not cand:
+        return None, None
+    return VENTANA[var](cand, key=lambda x: x[0])
+
+
+def valor_en(alm, cod, sens, var, dia, hhmm):
+    """Lectura de 'var' a una hora oficial concreta 'HH:MM' (la dirección que acompaña al viento elegido)."""
+    if var not in sens:
+        return None
+    du, hh, mm = a_utc(dia, *(int(x) for x in hhmm.split(":")))
+    try:
+        v = alm.hora(cod, var, sens, du, hh).get((hh, mm))
+    except RuntimeError:
+        return None
+    return float(v) if v is not None else None
+
+
+def completar_ventana(alm, cod, sens, dia, hora, vals, dv):
+    """Rellena en 'vals' (temperatura, humedad, viento en unidades de la API) lo que falte con la
+    ventana de ±50 min. Devuelve (dv, notas) con la dirección del viento y las anotaciones para 'origen'."""
+    notas = []
+    for var in ("temperatura", "humedad", "viento"):
+        if vals.get(var) is None:
+            v, hhmm = valor_ventana(alm, cod, sens, var, dia, hora)
+            if v is not None:
+                vals[var] = v
+                notas.append(f"{var}:{hhmm}")
+                if var == "viento":
+                    dv = valor_en(alm, cod, sens, "direccion", dia, hhmm)
+    return dv, notas
+
+
 def lluvia_24h(alm, cod, sens, dia, hora):
-    """Suma los tramos de lluvia desde (dia-1) a la hora indicada hasta (dia) a esa hora."""
-    ini = datetime.combine(dia - timedelta(days=1), hora_t(hora, 0))
+    """Suma los tramos de lluvia de las 24 h anteriores a la hora OFICIAL 'hora' de ese día."""
+    du, hu, _ = a_utc(dia, hora)
+    ini = datetime.combine(du, hora_t(hu, 0)) - timedelta(days=1)   # en UTC, como Euskalmet
     total, hay = 0.0, 0
     for h in range(24):
         t = ini + timedelta(hours=h)
@@ -580,11 +663,14 @@ def obtener_dia(cli, alm, sensores, cod, dia, hora, minimo=MIN_LLUVIA, rellenar_
     dv = None
     if "direccion" in sensores[cod] and vals["viento"] is not None:
         dv = valor_puntual(alm, cod, sensores[cod], "direccion", dia, hora)
-    w_kmh = vals["viento"] * VIENTO_FACTOR if vals["viento"] is not None else None
     if not rellenar_huecos and incompleto(vals, n):
         return None, n, "falta " + faltas(vals["temperatura"], vals["humedad"], vals["viento"], n, minimo)
+    # 1) lo que falte a la hora exacta: valor más desfavorable de la propia estación en ±50 min
+    dv, notas = completar_ventana(alm, cod, sensores[cod], dia, hora, vals, dv)
+    w_kmh = vals["viento"] * VIENTO_FACTOR if vals["viento"] is not None else None
+    # 2) lo que siga faltando: regla general (lluvia de la vecina; el resto, Open-Meteo)
     res, motivo = rellenar(cli, alm, cod, dia, hora, vals["temperatura"], vals["humedad"], w_kmh, dv,
-                           ll, n, minimo)
+                           ll, n, minimo, origen=notas)
     if res is None:
         return None, n, motivo
     t, h, w_kmh, dv, ll, origen = res
@@ -598,7 +684,8 @@ def main() -> int:
     p.add_argument("--emisor", default="panel-fwi")
     p.add_argument("--fecha", default=None, help="Primer día AAAA-MM-DD (por defecto, ayer)")
     p.add_argument("--hasta", default=None, help="Último día AAAA-MM-DD (por defecto, el mismo que --fecha)")
-    p.add_argument("--hora", type=int, default=12, help="Hora del dato, 0-23 (por defecto 12)")
+    p.add_argument("--hora", type=int, default=None,
+                   help="Hora OFICIAL del dato, 0-23 (por defecto, el mediodía solar: 13 en invierno, 14 en verano)")
     p.add_argument("--viento-kmh", action="store_true", help="El viento ya viene en km/h (no convertir)")
     p.add_argument("--muestra", action="store_true", help="Imprime una respuesta cruda y termina")
     p.add_argument("--sensores", default="sensores.json", metavar="FICHERO",
@@ -609,7 +696,7 @@ def main() -> int:
                    help="CSV de una ejecución anterior: solo descarga lo que le falte y guarda uno completo")
     a = p.parse_args()
 
-    if not 0 <= a.hora <= 23:
+    if a.hora is not None and not 0 <= a.hora <= 23:
         print("--hora debe estar entre 0 y 23")
         return 1
     ini = date.fromisoformat(a.fecha) if a.fecha else date.today() - timedelta(days=1)
@@ -651,9 +738,10 @@ def main() -> int:
         if cod not in sensores:
             print(f"No hay sensores detectados para {nombre}.")
             return 1
-        ruta = ruta_lectura(cod, sensores[cod]["temperatura"], ini, a.hora)
+        du, hu, _ = a_utc(ini, a.hora if a.hora is not None else hora_solar(ini))
+        ruta = ruta_lectura(cod, sensores[cod]["temperatura"], du, hu)
         r = cli.get(ruta)
-        print(f"Muestra: temperatura, {nombre} ({cod}), {ini} {a.hora:02d}h")
+        print(f"Muestra: temperatura, {nombre} ({cod}), {du} {hu:02d}h UTC")
         print("Ruta:", ruta)
         print("HTTP", r.status_code)
         print(r.text[:3000])
@@ -692,7 +780,8 @@ def main() -> int:
 
     dia = ini
     while dia <= fin:
-        print(f"\n--- {dia} ({a.hora:02d}:00) ---")
+        hora_d = a.hora if a.hora is not None else hora_solar(dia)
+        print(f"\n--- {dia} ({hora_d:02d}:00 hora oficial) ---")
         for nombre, cod in estaciones.items():
             if (dia.isoformat(), nombre) in previas:
                 filas.append(previas[(dia.isoformat(), nombre)])
@@ -703,7 +792,7 @@ def main() -> int:
                 omitidos.append((dia, nombre, "sin sensores detectados"))
                 continue
             try:
-                datos, n, motivo = obtener_dia(cli, alm, sensores, cod, dia, a.hora,
+                datos, n, motivo = obtener_dia(cli, alm, sensores, cod, dia, hora_d,
                                                rellenar_huecos=se_puede_rellenar(dia))
             except RuntimeError as e:
                 print(f"{nombre}: {e}")
