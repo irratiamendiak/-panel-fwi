@@ -642,8 +642,9 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   function spark(dias){
     const v = dias.slice(-10);
     if (!v.length) return '';
-    const alt = r => MODO === 'ifg' ? eqM(ifgDe(r)) : r.fwi;   // en la pestaña IFG, altura en la escala equivalente
-    const mx = Math.max(20,...v.map(alt));
+    // altura directa en la escala de cada pestaña: FWI (mínimo de referencia 20) o Basugix (referencia 50)
+    const alt = r => MODO === 'ifg' ? bgx(ifgDe(r)) : r.fwi;
+    const mx = Math.max(MODO === 'ifg' ? 50 : 20, ...v.map(alt));
     let s = '<svg width="100" height="30" viewBox="0 0 100 30" aria-hidden="true">';
     v.forEach((r,i) => {
       const h = Math.max(2,alt(r)/mx*28);
@@ -867,11 +868,11 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       barras = Object.keys(sem).map(Number).sort((a,b) => a-b).map(k => ({f: sem[k][0].f, v: sem[k].reduce((a,b) => a+b.v, 0)/sem[k].length}));
       etiqueta = MODO === 'ifg' ? 'asteko batez besteko Basugix' : 'asteko batez besteko FWIa';
     }
-    const W = 700, H = 130, ml = 28, mb = 16, top = Math.max(40, ...barras.map(b => eqM(b.v))) * 1.05;
-    const x = f => ml + (fecha(f) - fecha(desde))/864e5/total*(W-ml), y = v => (H-mb) - eqM(v)/top*(H-mb-4);
+    const W = 700, H = 130, ml = 28, mb = 16, top = Math.max(MODO === 'ifg' ? 50 : 40, ...barras.map(b => b.v)) * 1.05;
+    const x = f => ml + (fecha(f) - fecha(desde))/864e5/total*(W-ml), y = v => (H-mb) - Math.max(0, v)/top*(H-mb-4);
     const ancho = Math.max(0.6, (W-ml)/(total > 400 ? total/7 : total) - 0.6);
     let h = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-size="9">`;
-    (MODO === 'ifg' ? [[20,'20'],[30,'30'],[40,'40']] : [[11.2,'11,2'],[21.3,'21,3'],[38,'38']]).forEach(([v,t]) => { if (eqM(v) < top) h += `<line x1="${ml}" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#999" stroke-dasharray="3 3" stroke-width="0.6"/><text x="${ml-3}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" fill="#555">${t}</text>`; });
+    (MODO === 'ifg' ? [[20,'20'],[30,'30'],[40,'40']] : [[11.2,'11,2'],[21.3,'21,3'],[38,'38']]).forEach(([v,t]) => { if (v < top) h += `<line x1="${ml}" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="#999" stroke-dasharray="3 3" stroke-width="0.6"/><text x="${ml-3}" y="${(y(v)+3).toFixed(1)}" text-anchor="end" fill="#555">${t}</text>`; });
     barras.forEach(b => { const c = colorDe(clV(b.v)).c; h += `<rect x="${x(b.f).toFixed(1)}" y="${y(b.v).toFixed(1)}" width="${ancho.toFixed(2)}" height="${((H-mb)-y(b.v)).toFixed(1)}" fill="${c}"/>`; });
     h += `<line x1="${ml}" x2="${W}" y1="${H-mb}" y2="${H-mb}" stroke="#333" stroke-width="0.8"/>`;
     const marcas = [desde, fechaMedia(desde, hasta), hasta];
