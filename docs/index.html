@@ -52,6 +52,7 @@ section{margin-bottom:22px}
 .pestanas{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap}
 .pestanas button{font:inherit;font-weight:700;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
 .pestanas button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+a.ir-met{color:var(--accent);font-weight:600;white-space:nowrap}
 .st-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px}
 .fechabar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:14px}
 .fechabar input{font:inherit;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
@@ -182,8 +183,9 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       <button type="button" role="tab" id="tabFwi" data-modo="fwi" aria-selected="true">FWI</button>
       <button type="button" role="tab" id="tabIfg" data-modo="ifg" aria-selected="false">Basugix</button>
     </nav>
-    <p class="lede modo-ifg" hidden><b>Basugix</b>: Gipuzkoarako egokitutako baso sute arrisku indizea. FWIa, urtaroa eta hego haizea hartzen ditu kontuan, eta Gipuzkoako 2010-2025eko suteekin dago kalibratua. <b>20 = egun ertaina</b>; <b>10 puntu gehiago = sute-probabilitatea bikoitza</b> (30 = bi aldiz, 40 = lau aldiz, 50 = zortzi aldiz). Ikus azalpena orriaren amaieran.</p>
-    <p class="lede">Suteen arrisku meteorologikoa (Fire Weather Index) Zegaman, Bidanian, Miramonen, Berastegin, Arrasaten, Zarautzen (Inurritzako euri-datuekin), Ordizian, Zizurkilen, Pasaian (itsasoko plataforma) eta Altzolan (haizea Open-Meteo ereduarekin), Euskalmeten datuekin egunero kalkulatua, eta Mutrikun, kostaldeko hutsunea betetzeko, estaziorik ez dagoenez Open-Meteo ereduaren estimazioarekin (🖥️ eredua markatuta).</p>
+    <p class="lede modo-ifg" hidden><b>Basugix</b>: Gipuzkoarako egokitutako baso sute arrisku indizea. FWIa, urtaroa eta hego haizea hartzen ditu kontuan, eta Gipuzkoako 2010-2025eko suteekin dago kalibratua. <b>20 = egun ertaina</b>; <b>10 puntu gehiago = sute-probabilitatea bikoitza</b> (30 = bi aldiz, 40 = lau aldiz, 50 = zortzi aldiz). <a href="#metIfg" class="ir-met">Nola kalkulatzen den eta mailak →</a></p>
+    <p class="lede modo-fwi"><b>FWI</b> (Fire Weather Index): nazioartean erabiltzen den suteen arrisku meteorologikoaren indizea, EFFISen mailekin. <a href="#metFwi" class="ir-met">Nola kalkulatzen den eta mailak →</a></p>
+    <p class="lede">Egunero kalkulatzen dira Euskalmeten estazioetako datuekin: Zegama, Bidania, Miramon, Berastegi, Arrasate, Zarautz (Inurritzako euri-datuekin), Ordizia, Zizurkil, Pasaia (itsasoko plataforma) eta Altzola (haizea Open-Meteo ereduarekin). Mutrikun, kostaldeko hutsunea betetzeko, estaziorik ez dagoenez, Open-Meteo ereduaren estimazioa erabiltzen da (🖥️ eredua markatuta).</p>
     <p class="upd" id="upd">Datuak kargatzen…</p>
   </header>
 
@@ -279,8 +281,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       <p>FFMC, DMC eta DC egunez egun kalkulatzen dira, <b>aurreko egunaren baliotik</b> abiatuta (kaskada). Horregatik egun bateko datuek hurrengo egunetan ere eragina dute. Egun bat falta bada, azken balio eskuragarritik jarraitzen da (* markarekin xehetasunean). Hutsunea <b>bi aste baino luzeagoa</b> bada, kodeak berrabiarazten dira, eta hurrengo <b>45 egunak</b> "berotzen" (†) markatzen dira: balio orientagarriak dira, fidagarritasun txikikoak, eta ez dira sartzen klimatologian ez GIPUZKOAko batez bestekoan. Eguneko iraupen-faktoreak 46° N inguruko latitudeetarako daude kalibratuta, Euskadikoen antzekoak.</p>
     </details>
 
-    <details class="met">
-      <summary>Arrisku-mailak eta pertzentila</summary>
+    <details class="met" id="metFwi">
+      <summary>FWIaren arrisku-mailak eta pertzentila</summary>
       <p>Mailak EFFISen irizpidearen araberakoak dira:</p>
       <div class="classes">
         <span class="chip" style="background:#2f8f5b;color:#fff">Oso baxua</span><span>5,2 baino gutxiago</span>
@@ -467,6 +469,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     MODO = m;
     document.querySelectorAll('.pestanas button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.modo === m)));
     document.querySelectorAll('.modo-ifg').forEach(x => x.hidden = m !== 'ifg');
+    document.querySelectorAll('.modo-fwi').forEach(x => x.hidden = m !== 'fwi');
     history.replaceState(null, '', m === 'ifg' ? '#basugix' : location.pathname + location.search);
     if (DATA) aplicarFecha();
   }
@@ -572,6 +575,11 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     $('#fHoy').addEventListener('click', () => ponerFecha(null));
     $('#fPdf').addEventListener('click', abrirInforme);
     document.querySelectorAll('.pestanas button').forEach(b => b.addEventListener('click', () => ponerModo(b.dataset.modo)));
+    document.querySelectorAll('a.ir-met').forEach(a => a.addEventListener('click', ev => {
+      ev.preventDefault();
+      const d = document.querySelector(a.getAttribute('href'));
+      if (d){ d.open = true; d.scrollIntoView({behavior: 'smooth', block: 'start'}); }
+    }));
     window.addEventListener('hashchange', () => ponerModo(esHashBgx() ? 'ifg' : 'fwi'));
     ponerModo(MODO);
     $('#infCancel').addEventListener('click', () => $('#dlgInf').close());
@@ -680,7 +688,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         : fmt(p.min,0)+'–'+fmt(p.max,0);
       const linPrev = (p1 && !FECHA) ? `<span class="st-prev">Iragarpena ${fmtFecha(p1.fecha)}: <b>${fmtM(valM(p1))}</b>${est.resumen && MODO === 'ifg' ? '' : ' ('+rangoM(p1)+')'}</span>` : '';
       const extra = u.calentando ? '<span class="st-date">† berotzen: fidagarritasun gutxikoa</span>'
-                  : (MODO === 'ifg' ? `<span class="st-date">${fmtIfg(ifgDe(u))} egun ertainarekiko · FWI ${fmt(u.fwi)}</span>`
+                  : (MODO === 'ifg' ? `<span class="st-date">${fmtIfg(ifgDe(u))} egun ertainarekiko</span>`
                      : (u.pct != null ? `<span class="st-date">Hilabeteko ${u.pct}. pertzentila</span>` : ''));
       const notaCobertura = (est.resumen && u.cobertura != null && u.cobertura < 100)
                            ? `<span class="st-date">Gipuzkoako % ${u.cobertura}ekin kalkulatua</span>` : '';
@@ -821,19 +829,19 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         if (r && d.cobertura != null && d.cobertura < 100) notas.push('lurraldearen % '+d.cobertura);
       }
       filas += `<tr><td class="izena">${r ? '<b>'+nombreVis(e)+'</b>' : e.nombre}</td><td><b>${d ? fmtM(valM(d)) : '—'}</b></td><td>${d ? pill(claseM(d)) : '—'}</td>`+
-        `<td>${!d ? '—' : (MODO === 'ifg' ? fmt(d.fwi) : (d.pct != null ? d.pct : '—'))}</td><td>${r||!d ? '' : fmt(d.T)}</td><td>${r||!d ? '' : fmt(d.H,0)}</td>`+
+        `<td>${!d ? '—' : (MODO === 'ifg' ? fmtIfg(ifgDe(d)) : (d.pct != null ? d.pct : '—'))}</td><td>${r||!d ? '' : fmt(d.T)}</td><td>${r||!d ? '' : fmt(d.H,0)}</td>`+
         `<td>${r||!d ? '' : fmt(d.W)+(d.dir!=null?' '+sector8(d.dir):'')}</td><td>${r||!d ? '' : fmt(d.R)}</td>`+
-        `<td>${d ? fmt(d.isi) : ''}</td><td>${r||!d ? '' : fmt(d.dc)}</td><td class="izena">${notas.join(', ')}</td></tr>`;
+        `<td>${d && MODO !== 'ifg' ? fmt(d.isi) : ''}</td><td>${r||!d||MODO === 'ifg' ? '' : fmt(d.dc)}</td><td class="izena">${notas.join(', ')}</td></tr>`;
     });
     return `<div class="inf">
       <div class="inf-cab">
         <div><h1>${TIT()} — Gipuzkoa</h1>
           <p class="sub">${SUB()} · <b>${fmtFechaLuzea(fecha(f))}</b>${esPrev ? ' · <b>IRAGARPENA</b>' : ''}</p></div>
-        ${dg ? `<div class="inf-gip" style="background:${colorDe(claseM(dg)).c};color:${colorDe(claseM(dg)).fg}">GIPUZKOA<div class="v">${fmtM(valM(dg))}</div>${claseEu(claseM(dg))}${MODO === 'ifg' ? '<br>FWI '+fmt(dg.fwi) : (dg.pct != null ? '<br>'+dg.pct+'. pertzentila' : '')}</div>` : ''}
+        ${dg ? `<div class="inf-gip" style="background:${colorDe(claseM(dg)).c};color:${colorDe(claseM(dg)).fg}">GIPUZKOA<div class="v">${fmtM(valM(dg))}</div>${claseEu(claseM(dg))}${MODO === 'ifg' ? '<br>'+fmtIfg(ifgDe(dg))+' egun ertainarekiko' : (dg.pct != null ? '<br>'+dg.pct+'. pertzentila' : '')}</div>` : ''}
       </div>
       <div class="inf-mapa">${svgMapa(geo, puntosDe(geo, n => porNombre[n] ? valM(porNombre[n]) : null))}</div>
       ${leyendaInf()}
-      <table><thead><tr><th>Estazioa</th><th>${MODO === 'ifg' ? 'Basugix' : 'FWI'}</th><th>Maila</th><th>${MODO === 'ifg' ? 'FWI' : 'Pertz.'}</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria 24 h mm</th><th>ISI</th><th>DC</th><th>Oharrak</th></tr></thead><tbody>${filas}</tbody></table>
+      <table><thead><tr><th>Estazioa</th><th>${MODO === 'ifg' ? 'Basugix' : 'FWI'}</th><th>Maila</th><th>${MODO === 'ifg' ? '× egun ert.' : 'Pertz.'}</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria 24 h mm</th><th>${MODO === 'ifg' ? '' : 'ISI'}</th><th>${MODO === 'ifg' ? '' : 'DC'}</th><th>Oharrak</th></tr></thead><tbody>${filas}</tbody></table>
       ${pieInf('Mapa: gainazal jarraitua (estazioen balioen interpolazioa, alderantzizko distantziaren arabera).')}
     </div>`;
   }
@@ -932,19 +940,20 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     if (d){
       tabla += fila('Tenperatura', fmt(d.T)+' °C') + fila('Hezetasun erlatiboa', '% '+fmt(d.H,0)) +
         fila('Haizea', fmt(d.W)+' km/h'+(d.dir != null ? ' ('+sector8(d.dir)+')' : '')) + fila('Euria (24 h)', fmt(d.R)+' mm');
-      [['FFMC','ffmc'],['DMC','dmc'],['DC','dc'],['ISI','isi'],['BUI','bui']].forEach(([t,k]) => { if (d[k] != null) tabla += fila(t, fmt(d[k])); });
-      tabla += fila('<b>FWI</b>', '<b>'+fmt(d.fwi)+'</b> '+pill(d.clase || claseDeFwi(d.fwi))) + fila('Hilabeteko pertzentila', d.pct != null ? d.pct+'.' : '—');
-      tabla += fila('<b>Basugix</b>', '<b>'+fmt(bgx(ifgDe(d)))+'</b> '+pill(claseBgx(bgx(ifgDe(d))))+' <span style="color:#555">('+fmtIfg(ifgDe(d))+' sute-probabilitatea egun ertain batekiko)</span>');
+      if (MODO !== 'ifg'){
+        [['FFMC','ffmc'],['DMC','dmc'],['DC','dc'],['ISI','isi'],['BUI','bui']].forEach(([t,k]) => { if (d[k] != null) tabla += fila(t, fmt(d[k])); });
+        tabla += fila('<b>FWI</b>', '<b>'+fmt(d.fwi)+'</b> '+pill(d.clase || claseDeFwi(d.fwi))) + fila('Hilabeteko pertzentila', d.pct != null ? d.pct+'.' : '—');
+      } else tabla += fila('<b>Basugix</b>', '<b>'+fmt(bgx(ifgDe(d)))+'</b> '+pill(claseBgx(bgx(ifgDe(d))))+' <span style="color:#555">('+fmtIfg(ifgDe(d))+' sute-probabilitatea egun ertain batekiko)</span>');
       if (d.mult_viento > 1) tabla += fila('Hego haizearen abisua', 'arriskua ~×'+fmt(d.mult_viento,1));
     }
     const desde14 = masDias(f, -13), serie14 = Array.from({length: 14}, (_, k) => diaEst(e, masDias(desde14, k))).filter(x => x && !x.prev && x.fwi != null);
     const graf = serie14.length ? graficoSerie(serie14, desde14, f) : null;
-    const notas = notasEst(e, d), klima = klimaMes(e, f);
+    const notas = notasEst(e, d), klima = MODO === 'ifg' ? '' : klimaMes(e, f);
     return `<div class="inf">
       <div class="inf-cab">
         <div><h1>${TIT()} — ${nombreVis(e)}</h1>
           <p class="sub">${SUB()} · <b>${fmtFechaLuzea(fecha(f))}</b>${f > fechaActual() ? ' · <b>IRAGARPENA</b>' : ''}${d && d.fecha && d.fecha !== f ? ' · azken datua: '+fmtFecha(d.fecha) : ''}</p></div>
-        <div class="inf-gip" style="background:${col.c};color:${col.fg}">${nombreVis(e).toUpperCase()}<div class="v">${d ? fmtM(valM(d)) : '—'}</div>${d ? claseEu(claseM(d)) : 'daturik ez'}${d ? (MODO === 'ifg' ? '<br>FWI '+fmt(d.fwi) : (d.pct != null ? '<br>'+d.pct+'. pertzentila' : '')) : ''}</div>
+        <div class="inf-gip" style="background:${col.c};color:${col.fg}">${nombreVis(e).toUpperCase()}<div class="v">${d ? fmtM(valM(d)) : '—'}</div>${d ? claseEu(claseM(d)) : 'daturik ez'}${d ? (MODO === 'ifg' ? '<br>'+fmtIfg(ifgDe(d))+' egun ertainarekiko' : (d.pct != null ? '<br>'+d.pct+'. pertzentila' : '')) : ''}</div>
       </div>
       <div class="inf-mapa peq">${svgMapa(geo, puntosDe(geo, n => porNombre[n] ? valM(porNombre[n]) : null), e.nombre)}</div>
       ${leyendaInf()}
@@ -973,8 +982,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
             return `<tr><td class="izena">${k.slice(0,4)} ${HIL_GEN[+k.slice(5)-1].replace(/aren$|ren$|en$/,'a')}</td><td>${v.length}</td><td><b>${fmtM(m)}</b></td><td>${pill(clV(m))}</td><td>${fmtM(valM(mx))} <span style="color:#555">(${fmtFecha(mx.fecha)})</span></td><td>${al}</td></tr>`; }).join('')+'</tbody></table>';
       }
       const mejores = x.serie.slice().sort((a,b) => valM(b) - valM(a)).slice(0, 5);
-      top = '<h2>'+(MODO === 'ifg' ? 'Basugix altuena' : 'FWI altuena')+' izan zuten egunak</h2><table><thead><tr><th>Eguna</th><th>'+(MODO === 'ifg' ? 'Indizea' : 'FWI')+'</th><th>Maila</th><th>'+(MODO === 'ifg' ? 'FWI' : 'Pertz.')+'</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria mm</th></tr></thead><tbody>'+
-        mejores.map(d => `<tr><td class="izena">${fmtLargo(d.fecha)}</td><td><b>${fmtM(valM(d))}</b></td><td>${pill(claseM(d))}</td><td>${MODO === 'ifg' ? fmt(d.fwi) : (d.pct != null ? d.pct : '—')}</td><td>${e.resumen ? '' : fmt(d.T)}</td><td>${e.resumen ? '' : fmt(d.H,0)}</td><td>${e.resumen || d.W == null ? '' : fmt(d.W)+(d.dir!=null?' '+sector8(d.dir):'')}</td><td>${e.resumen ? '' : fmt(d.R)}</td></tr>`).join('')+'</tbody></table>';
+      top = '<h2>'+(MODO === 'ifg' ? 'Basugix altuena' : 'FWI altuena')+' izan zuten egunak</h2><table><thead><tr><th>Eguna</th><th>'+(MODO === 'ifg' ? 'Basugix' : 'FWI')+'</th><th>Maila</th><th>'+(MODO === 'ifg' ? '× egun ert.' : 'Pertz.')+'</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria mm</th></tr></thead><tbody>'+
+        mejores.map(d => `<tr><td class="izena">${fmtLargo(d.fecha)}</td><td><b>${fmtM(valM(d))}</b></td><td>${pill(claseM(d))}</td><td>${MODO === 'ifg' ? fmtIfg(ifgDe(d)) : (d.pct != null ? d.pct : '—')}</td><td>${e.resumen ? '' : fmt(d.T)}</td><td>${e.resumen ? '' : fmt(d.H,0)}</td><td>${e.resumen || d.W == null ? '' : fmt(d.W)+(d.dir!=null?' '+sector8(d.dir):'')}</td><td>${e.resumen ? '' : fmt(d.R)}</td></tr>`).join('')+'</tbody></table>';
     }
     const graf = x ? graficoSerie(x.serie, desde, hasta) : null;
     const notas = notasEst(e, null);
@@ -1038,7 +1047,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         const rg = MODO === 'ifg'
           ? (e.resumen ? '' : fmtM(bgx(ifgDeFwi(p.min, p.fecha, p.dir, p.W)))+'–'+fmtM(bgx(ifgDeFwi(p.max, p.fecha, p.dir, p.W))))
           : fmt(p.min,0)+'–'+fmt(p.max,0);
-        return `<td class="fwi"><span style="background:${c.c};color:${c.fg}">${fmtM(valM(p))}</span>${rg?'<small class="rg">'+rg+'</small>':''}<small class="rg">${MODO === 'ifg' ? 'FWI '+fmt(p.fwi) : 'ISI '+fmt(p.isi)}</small>${vTxt?'<small class="rg">'+vTxt+'</small>':''}${p.k === 0 ? '<small class="rg">kalkulatua</small>' : ''}${p.mult_viento>1?'<small class="rg">💨×'+fmt(p.mult_viento,1)+'</small>':''}</td>`;
+        return `<td class="fwi"><span style="background:${c.c};color:${c.fg}">${fmtM(valM(p))}</span>${rg?'<small class="rg">'+rg+'</small>':''}<small class="rg">${MODO === 'ifg' ? fmtIfg(ifgDe(p)) : 'ISI '+fmt(p.isi)}</small>${vTxt?'<small class="rg">'+vTxt+'</small>':''}${p.k === 0 ? '<small class="rg">kalkulatua</small>' : ''}${p.mult_viento>1?'<small class="rg">💨×'+fmt(p.mult_viento,1)+'</small>':''}</td>`;
       }).join('') + '</tr>';
     });
     $('#prevTabla').innerHTML = h + '</tbody></table>';
@@ -1276,7 +1285,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     const textoFWI = (nombre) => {
       const d = valorDe(nombre);
       if (!d) return nombre+': egun honetan daturik ez';
-      if (esIfg()) return nombre+': Basugix '+A.fmtM(A.valM(d))+' ('+claseEuMin(claseMap(d))+', '+A.fmtIfg(A.ifgDe(d))+') · FWI '+fmt(d.fwi)+(d.prev ? ' · iragarpena' : '')+(INFO[nombre].modelo ? ' · 🖥️ eredua, ez estazioa' : '');
+      if (esIfg()) return nombre+': Basugix '+A.fmtM(A.valM(d))+' ('+claseEuMin(claseMap(d))+', '+A.fmtIfg(A.ifgDe(d))+')'+(d.prev ? ' · iragarpena' : '')+(INFO[nombre].modelo ? ' · 🖥️ eredua, ez estazioa' : '');
       return nombre+': FWI '+fmt(d.fwi)+' ('+claseEuMin(d.clase)+')'+(d.prev ? ' · iragarpena, tartea '+fmt(d.min,0)+'–'+fmt(d.max,0) : '')+(d.mult_viento>1 ? ' · 💨 hego haizea ×'+fmt(d.mult_viento,1) : '')+(INFO[nombre].modelo ? ' · 🖥️ eredua, ez estazioa' : '');
     };
     const estiloZona = f => {
@@ -1310,11 +1319,11 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       if (inf.modelo) h += '<i>🖥️ Open-Meteo ereduaren estimazioa, tokiko estaziorik gabe</i><br>';
       if (!d) return h+'Daturik ez '+fmtFecha(estado.fecha)+'(e)an.';
       if (d.prev) h += '<i>Iragarpena '+(d.k === 0 ? '(gaurko kalkulua) ' : '')+'· ohiko tartea '+fmt(d.min,0)+'–'+fmt(d.max,0)+'</i><br>';
-      h += '<span style="display:inline-block;margin:4px 0;padding:1px 10px;border-radius:999px;font-weight:700;background:'+colorDe(d.clase).c+';color:'+colorDe(d.clase).fg+'">FWI '+fmt(d.fwi)+' · '+claseEuMin(d.clase)+'</span><br>';
+      if (!esIfg()) h += '<span style="display:inline-block;margin:4px 0;padding:1px 10px;border-radius:999px;font-weight:700;background:'+colorDe(d.clase).c+';color:'+colorDe(d.clase).fg+'">FWI '+fmt(d.fwi)+' · '+claseEuMin(d.clase)+'</span><br>';
       if (esIfg()){ const ci = colorDe(claseMap(d)); h += '<span style="display:inline-block;margin:2px 0 4px;padding:1px 10px;border-radius:999px;font-weight:700;background:'+ci.c+';color:'+ci.fg+'">Basugix '+A.fmtM(A.valM(d))+' · '+claseEuMin(claseMap(d))+'</span> '+A.fmtIfg(A.ifgDe(d))+' egun ertainarekiko<br>'; }
-      if (d.pct != null) h += 'Hilabeteko '+d.pct+'. pertzentila<br>';
+      if (d.pct != null && !esIfg()) h += 'Hilabeteko '+d.pct+'. pertzentila<br>';
       h += 'T '+fmt(d.T)+' °C · HR % '+fmt(d.H,0)+' · haizea '+fmt(d.W)+' km/h'+(d.dir!=null?' ('+sector8(d.dir)+')':'')+' · euria '+fmt(d.R)+' mm<br>';
-      h += 'FFMC '+fmt(d.ffmc)+' · DMC '+fmt(d.dmc)+' · DC '+fmt(d.dc)+' · ISI '+fmt(d.isi);
+      if (!esIfg()) h += 'FFMC '+fmt(d.ffmc)+' · DMC '+fmt(d.dmc)+' · DC '+fmt(d.dc)+' · ISI '+fmt(d.isi);
       if (d.mult_viento > 1) h += '<br>💨 Hego haizea: FWI honekin, sute-arriskua ~×'+fmt(d.mult_viento,1)+' handiagoa (informatiboa)';
       if (d.calentando) h += '<br>† balioak oraindik berotzen';
       if (NOTAS[e.nombre]) h += '<br><i>ℹ️ '+NOTAS[e.nombre]+'</i>';
