@@ -368,6 +368,8 @@ def prevision_media(previsiones, pesos, ref, cobertura_minima=0.30):
             continue
         for f in filas:
             if not f.get("calentando"):
+                if f.get("ifg") is None and f.get("fwi") is not None:   # previsiones antiguas sin Basugix
+                    f["ifg"] = round(ifg_calc(f["fwi"], f["fecha"], componente_sur(f.get("dir")), f.get("W")), 2)
                 por_fecha.setdefault(f["fecha"], {})[nombre] = f
     VARS = ("ffmc", "dmc", "dc", "isi", "bui", "fwi", "min", "max", "ifg")
     salida = []
@@ -763,6 +765,88 @@ def escribir_historico(cascadas, ref, orden_json):
     HISTORICO_WEB.write_text(json.dumps(salida, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
+def bgx_de_ifg(v):
+    """Basugix a partir del multiplicador IFG: 20 = día medio; +10 puntos = probabilidad doble."""
+    return max(0.0, 20 + 10 * math.log2(max(v, 1e-6)))
+
+
+def clase_bgx(v):
+    for nombre, tope in (("Muy bajo", 10), ("Bajo", 20), ("Moderado", 30), ("Alto", 40), ("Muy alto", 50)):
+        if round(v, 1) < tope:
+            return nombre
+    return "Extremo"
+
+
+def verificar_previsiones(cascadas, hoy, dias=365):
+    """Compara las previsiones guardadas en datos/previsiones.csv con lo medido después.
+
+    Para 1, 2 y 3 días de antelación, por separado para el conjunto de estaciones y para GIPUZKOA:
+    número de casos, error medio absoluto, tendencia (media de previsto - medido), % de veces que el
+    valor medido cayó dentro del tramo mín-máx y % de nivel acertado. Para el FWI y para Basugix."""
+    if not REGISTRO_PREVISIONES.exists():
+        return None
+    medido = {(n, d["fecha"]): d for n, dd in cascadas.items() for d in dd if not d.get("calentando")}
+    desde = (hoy - timedelta(days=dias)).isoformat()
+    acum = {}
+    emisiones = set()
+    with open(REGISTRO_PREVISIONES, newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            try:
+                ad = int(r["adelanto"])
+                pf = float(r["fwi"])
+            except (KeyError, ValueError):
+                continue
+            if ad not in (1, 2, 3) or r["emitida"] < desde:
+                continue
+            o = medido.get((r["estacion"], r["fecha"]))
+            if not o:
+                continue
+            emisiones.add(r["emitida"])
+            grupo = "Gipuzkoa" if r["estacion"] == "Gipuzkoa" else "estaciones"
+            a = acum.setdefault((grupo, ad), {"n": 0, "fwi": [0, 0, 0, 0, 0], "bgx": [0, 0, 0, 0, 0]})
+            a["n"] += 1
+            # FWI: |error|, error, dentro del tramo, casos con tramo, nivel acertado
+            e = pf - o["fwi"]
+            a["fwi"][0] += abs(e); a["fwi"][1] += e
+            try:
+                mn, mx = float(r["min"]), float(r["max"])
+                a["fwi"][3] += 1
+                a["fwi"][2] += 1 if mn <= o["fwi"] <= mx else 0
+            except (KeyError, ValueError):
+                mn = mx = None
+            a["fwi"][4] += 1 if clase(pf) == o.get("clase", clase(o["fwi"])) else 0
+            # Basugix (si la previsión guardó su IFG)
+            try:
+                pi = float(r["ifg"])
+            except (KeyError, ValueError, TypeError):
+                pi = None
+            if pi and o.get("ifg"):
+                pb, ob = bgx_de_ifg(pi), bgx_de_ifg(o["ifg"])
+                eb = pb - ob
+                a.setdefault("nb", 0); a["nb"] += 1
+                a["bgx"][0] += abs(eb); a["bgx"][1] += eb
+                if mn is not None:
+                    # el tramo de FWI se traslada a Basugix con la misma época y viento que la previsión
+                    bmn = pb + 10 * IFG_B1 * math.log2((1 + mn) / (1 + pf))
+                    bmx = pb + 10 * IFG_B1 * math.log2((1 + mx) / (1 + pf))
+                    a["bgx"][3] += 1
+                    a["bgx"][2] += 1 if bmn - 0.05 <= ob <= bmx + 0.05 else 0
+                a["bgx"][4] += 1 if clase_bgx(pb) == clase_bgx(ob) else 0
+    if not acum:
+        return {"emisiones": 0, "grupos": {}}
+    grupos = {}
+    for (g, ad), a in sorted(acum.items()):
+        res = {"n": a["n"]}
+        for k, n in (("fwi", a["n"]), ("bgx", a.get("nb", 0))):
+            v = a[k]
+            if n:
+                res[k] = {"mae": round(v[0] / n, 1), "sesgo": round(v[1] / n, 1),
+                          "en_tramo": round(100 * v[2] / v[3]) if v[3] else None,
+                          "nivel": round(100 * v[4] / n), "n": n}
+        grupos.setdefault(g, {})[str(ad)] = res
+    return {"emisiones": len(emisiones), "desde": min(emisiones), "hasta": max(emisiones), "grupos": grupos}
+
+
 def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
     orden = list(ew.ESTACIONES) + list(NOMBRES_EXTRA) + list(MODELO_ESTACIONES)
     filas_csv = []
@@ -841,6 +925,11 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
                            "dias": recientes, "prevision": (previsiones or {}).get(nombre, [])})
 
     SALIDA.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        verificacion = verificar_previsiones(cascadas, ahora.date())
+    except (OSError, ValueError, KeyError) as e:   # nunca debe impedir publicar el panel
+        print("No se ha podido verificar la previsión:", e)
+        verificacion = None
     paquete = {
         "actualizado": ahora.isoformat(timespec="minutes"),
         "hora_dato": hora,
@@ -848,6 +937,7 @@ def escribir(datos, inicial, hora, ahora, dias_json, previsor=None):
         "parametros": {"hueco_max": HUECO_MAX, "calentamiento": CALENTAMIENTO},
         "climatologia": clim,
         "prevision_info": info,
+        "verificacion": verificacion,
         "estaciones": estaciones,
     }
     SALIDA.write_text(json.dumps(paquete, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
