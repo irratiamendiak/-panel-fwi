@@ -244,7 +244,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     <details class="met">
       <summary>Datuak eta ordua: eguzki-eguerdia</summary>
       <p>Egunero <b>eguzki-eguerdiko</b> datuak erabiltzen dira: <b>12:00 UTC</b>, hau da, ordu ofizialean <b>13:00 neguan eta 14:00 udan</b>. Estazio bakoitzeko ordu horretako tenperatura, hezetasun erlatiboa eta haizearen abiadura eta norabidea hartzen dira, eta aurreko <b>24 orduetako euri metatua</b>. Hori da FWI sistemaren irizpide estandarra, eta EFFISek erabiltzen duen bera.</p>
-      <p>Euskalmetek datuak argitaratzeko denbora behar duenez, datuak <b>14:20an eta 14:40an</b> deskargatzen dira, eta <b>15:00etan eguna ixten da</b> (udan; neguan ordubete lehenago). Eguna beti ixten da 14:00etako datuarekin: <b>ez da inoiz geroagoko irakurketarik erabiltzen</b>. Webguneak 14:30etik aurrera erakusten du eguneko datua; ordura arte, aurreko egunekoa. Estazio batean datua oraindik osatu gabe badago, orduan arte neurtutakoarekin kalkulatutako balioa agertzen da, "kalkulatua" markarekin. Orria bost minuturo eguneratzen da bakarrik.</p>
+      <p>Euskalmetek datuak argitaratzeko denbora behar duenez, datuak <b>14:10etik 15:00ra, 10 minuturo</b> deskargatzen dira, eta <b>15:00etan eguna ixten da</b> (udan; neguan ordubete lehenago). Eguna beti ixten da 14:00etako datuarekin: <b>ez da inoiz geroagoko irakurketarik erabiltzen</b>. Webguneak eguneko datua erakusten du Euskalmeten datu neurtua iritsi bezain laster (normalean 14:10 eta 14:30 artean); ordura arte, aurreko egunekoa. Estazio batek oraindik daturik ez badu, orduan arte neurtutakoarekin kalkulatutako balioa agertzen da, "kalkulatua" markarekin, datu neurtua iritsi arte. Orria bakarrik eguneratzen da: minuturo datuak iristen diren orduetan, eta bost minuturo gainerakoan.</p>
     </details>
 
     <details class="met">
@@ -472,7 +472,12 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       if (nuevo || fij !== fijadoAntes){ fijadoAntes = fij; aplicarFecha(); }
     }).catch(() => {});
   }
-  setInterval(refrescar, 5*60*1000);
+  // cada minuto entre 10 min antes de la hora del dato y 90 min después (cuando llegan los datos del
+  // día); el resto del día, cada 5 minutos
+  setInterval(() => {
+    const m = minutosEuskadi(), h = DATA && DATA.hora_dato != null ? DATA.hora_dato * 60 : 14 * 60;
+    if ((m >= h - 10 && m <= h + 90) || m % 5 === 0) refrescar();
+  }, 60*1000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescar(); });
   let fechaIniciada = false;
   function iniciarFecha(){
@@ -513,8 +518,13 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   // El dato del día se fija MARGEN_FIJADO minutos después de la hora del dato (mediodía solar: 14:00 en
   // verano, 13:00 en invierno), para dar tiempo a que Euskalmet lo publique y el proceso lo recoja.
   // A partir de entonces el día en curso ya no es previsión: sale en la tarjeta, no en la tabla.
-  const MARGEN_FIJADO = 30;
-  function diaFijado(){ return DATA && DATA.hora_dato != null && minutosEuskadi() >= DATA.hora_dato * 60 + MARGEN_FIJADO; }
+  // El día de hoy pasa a verse en cuanto llega el dato MEDIDO de alguna estación real (normalmente hacia
+  // las 14:10-14:30 en verano). Si a la hora de cierre (hora del dato + 60 min: 15:00 en verano, 14:00 en
+  // invierno) aún no ha llegado ninguno, se muestra igualmente hoy, calculado con lo medido hasta entonces.
+  const MARGEN_CIERRE = 60;
+  const hayMedidoHoy = () => DATA && DATA.estaciones.some(e => !e.resumen && !e.modelo && (ultimo(e) || {}).fecha === hoyISO());
+  const pasadoCierre = () => DATA && DATA.hora_dato != null && minutosEuskadi() >= DATA.hora_dato * 60 + MARGEN_CIERRE;
+  function diaFijado(){ return !!DATA && (hayMedidoHoy() || pasadoCierre()); }
 
   // Egun errealak eta iragarpena (jada neurtutako datak errepikatu gabe)
   function conPrevision(est){
