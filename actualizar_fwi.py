@@ -110,10 +110,14 @@ if az is not None:
     CODIGO_HIBRIDO[az.NOMBRE] = az.ESTACION
 IDENTIDAD = {"T": ("id", 0), "H": ("id", 0), "W": ("id", 0)}   # sin corrección: no hay estación con la que calibrarla
 DIAS_JSON = 400      # días recientes que se publican en la web
-# Multiplicador aproximado de la tasa de incendios con viento del cuadrante sur, calibrado con el
-# registro EGIF de incendios de Gipuzkoa 2010-2025 (ver el análisis del panel): a igualdad de FWI,
-# el viento sur multiplica el riesgo de ignición. Es una estimación orientativa, no un factor exacto.
-MULT_VIENTO = [(11.2, 6.0), (38.0, 2.6), (math.inf, 2.0)]
+# Multiplicador de la tasa de incendios con viento del cuadrante sur (SE-S-SO, 120-240°) de al menos
+# VIENTO_SUR_MIN km/h a la hora del dato. Calibrado con el registro EGIF de Gipuzkoa 2010-2025 (497
+# incendios, 63.831 días-estación, histórico al mediodía solar): a igualdad de FWI, con viento sur hubo
+# 2,7 veces más incendios (intervalo 95 %: unos 2,3-3,3). El umbral de 3 km/h fue el que mejor ajustaba;
+# los valores por rango de FWI (x2,8 con FWI < 11,2; x2,4 entre 11,2 y 38) no difieren significativamente,
+# así que se usa un único multiplicador. Es una estimación orientativa, no un factor exacto.
+MULT_VIENTO_SUR = 2.7
+VIENTO_SUR_MIN = 3.0   # km/h
 CLASES = [("Muy bajo", 5.2), ("Bajo", 11.2), ("Moderado", 21.3),
           ("Alto", 38.0), ("Muy alto", 50.0), ("Extremo", math.inf)]
 
@@ -212,16 +216,14 @@ def componente_sur(direccion_grados):
     return max(0.0, -math.cos(math.radians(direccion_grados)))
 
 
-def mult_viento(fwi, sur):
-    """Multiplicador orientativo de riesgo de ignición si el viento sopla del cuadrante sur."""
+def mult_viento(fwi, sur, W=None):
+    """Multiplicador orientativo de riesgo de ignición si el viento sopla del cuadrante sur
+    (componente sur >= 0,5, es decir, entre 120 y 240°) con al menos VIENTO_SUR_MIN km/h."""
     if sur is None:
         return None
-    if sur < 0.5:
+    if sur < 0.5 or (W is not None and W < VIENTO_SUR_MIN):
         return 1.0
-    for tope, m in MULT_VIENTO:
-        if fwi < tope:
-            return m
-    return MULT_VIENTO[-1][1]
+    return MULT_VIENTO_SUR
 
 
 def cascada(filas, inicial, estado=None):
@@ -257,7 +259,7 @@ def cascada(filas, inicial, estado=None):
             "fecha": f["fecha"], "T": T, "H": H, "W": W, "R": R, "dir": f.get("direccion"), "sur": sur,
             "ffmc": round(F, 1), "dmc": round(M, 1), "dc": round(D, 1),
             "isi": round(isi, 1), "bui": round(bui, 1), "fwi": round(fwi, 1),
-            "clase": clase(fwi), "hueco": hueco, "mult_viento": mult_viento(fwi, sur),
+            "clase": clase(fwi), "hueco": hueco, "mult_viento": mult_viento(fwi, sur, W),
             "calentando": (d - inicio).days < CALENTAMIENTO,
         })
     if estado is not None and prev is not None:      # último estado real, sin redondear, para la previsión
@@ -650,7 +652,7 @@ def crear_previsor(alm, sensores, hora):
                         "dir": round(DV, 0) if DV is not None else None, "sur": sur,
                         "ffmc": round(F, 1), "dmc": round(M, 1), "dc": round(D, 1), "isi": round(isi, 1), "bui": round(bui, 1),
                         "fwi": round(fwi, 1), "min": round(lo, 1), "max": round(hi, 1), "clase": clase(fwi),
-                        "mult_viento": mult_viento(fwi, sur),
+                        "mult_viento": mult_viento(fwi, sur, W),
                         "pct": rango_percentil(v, fwi) if (v and len(v) >= 30 and not est["calentando"]) else None,
                         "calentando": est["calentando"], "lluvia_medida_h": medidas})
                 dia += timedelta(days=1)
