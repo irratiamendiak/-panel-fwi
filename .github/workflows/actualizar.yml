@@ -3,11 +3,13 @@ name: Actualizar FWI
 on:
   schedule:
     # Todas las horas son UTC. El dato del FWI es el del mediodía solar, que son siempre las 12:00 UTC
-    # (13:00 en invierno, 14:00 en verano). La web fija el día 30 minutos después (13:30 / 14:30).
+    # (13:00 en invierno, 14:00 en verano). Se espera a que Euskalmet lo publique hasta 60 minutos después;
+    # a esa hora (15:00 en verano, 14:00 en invierno) el día se cierra siempre con el dato de las 12:00 UTC.
     - cron: "0 6 * * *"      # previsión de primera hora (08:00 en verano, 07:00 en invierno)
     - cron: "20 12 * * *"    # dato del día: 14:20 en verano / 13:20 en invierno
-    - cron: "0 13 * * *"     # reintento para estaciones con el dato aún incompleto
-    - cron: "0 14 * * *"     # último reintento del día
+    - cron: "40 12 * * *"    # reintento: 14:40 / 13:40
+    - cron: "0 13 * * *"     # cierre del día: 15:00 / 14:00 (lo que falte se completa con la regla)
+    - cron: "20 13 * * *"    # respaldo por si GitHub retrasa o falla la ejecución de cierre
   workflow_dispatch:   # permite lanzarlo a mano desde la pestaña Actions
 
 permissions:
