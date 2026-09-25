@@ -842,7 +842,7 @@ def main() -> int:
         dia_fin = date.fromisoformat(a.hasta)
     else:
         # el dato del mediodía solar (tramo HH:00-HH:09) está disponible poco después de HH:10
-        limite = ahora.replace(hour=hora, minute=20, second=0, microsecond=0)
+        limite = ahora.replace(hour=hora, minute=10, second=0, microsecond=0)   # desde HH:10 se intenta ya el dato de hoy
         dia_fin = ahora.date() if ahora >= limite else ahora.date() - timedelta(days=1)
     primera = date.fromisoformat(a.desde) if a.desde else dia_fin
     print(f"Hora del dato: {hora:02d}:00 ({'verano' if hora == 14 else 'invierno'}, mediodía solar aproximado).")
