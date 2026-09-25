@@ -574,7 +574,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const txtSute = x => `${x.h} · ${x.m}${x.p ? ' ('+x.p+')' : ''} · ${fmtHa(x.ha)} ha · ${x.c}`;
 
   window.FWI_API = {
-    suteakEgun: f => suteakEgun(f), txtSute: x => txtSute(x),
+    suteakEgun: f => suteakEgun(f), txtSute: x => txtSute(x), suteakGuztiak: () => SUTEAK ? SUTEAK.suteak : null,
     diaHist: (n, f) => diaHist(n, f),
     fechaVista: () => fechaVista(),
     modo: () => MODO, valM: d => valM(d), fmtIfg: v => fmtIfg(v), claseM: d => claseM(d), fmtM: v => fmtM(v), eqM: v => eqM(v), ifgDe: d => ifgDe(d), leyenda: () => LEY(),
@@ -732,7 +732,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const linDatos = est.resumen ? '' : `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
       const insigniaResumen = '';
       const nSute = SUTEAK ? suteakEgun(u.fecha).filter(x => est.resumen || x.e === est.nombre).length : 0;
-      const chipSute = nSute ? `<span class="chip sute" title="EGIF erregistroa">🔥 ${nSute} sute${est.resumen ? ' Gipuzkoan' : ' eremuan'}</span>` : '';
+      const chipSute = nSute ? `<span class="chip sute" title="EGIF erregistroa: ${est.resumen ? 'Gipuzkoa osoko suteak' : 'estazio honen eragin-eremuko suteak'}">🔥 ${nSute} sute${est.resumen ? ' Gipuzkoan' : ' eragin-eremuan'}</span>` : '';
       const linIsi = (est.resumen || MODO === 'ifg') ? '' : `<span class="st-isi">ISI ${fmt(u.isi)} · DC ${fmt(u.dc)}</span>`;
       return `<button class="st${est.modelo?' eredua':''}${est.resumen?' resumen':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
         <span class="st-name">${nombreVis(est)}${infoI}</span>
@@ -1498,12 +1498,24 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     function textoLeyenda(){
       const items = A ? A.leyenda() : [['Muy bajo','< 5,2'],['Bajo','5,2–11,2'],['Moderado','11,2–21,3'],['Alto','21,3–38'],['Muy alto','38–50'],['Extremo','> 50']];
       return '<b>'+(esIfg() ? 'Basugix' : 'FWI')+'</b><br>' + items
-        .map(([n,r]) => '<i style="background:'+colorDe(n).c+'"></i>'+{'Muy bajo':'Oso baxua','Bajo':'Baxua','Moderado':'Ertaina','Alto':'Handia','Muy alto':'Oso handia','Extremo':'Muturrekoa'}[n]+' ('+r+')').join('<br>') + '<br><i style="background:#9aa5a0"></i>Daturik ez';
+        .map(([n,r]) => '<i style="background:'+colorDe(n).c+'"></i>'+{'Muy bajo':'Oso baxua','Bajo':'Baxua','Moderado':'Ertaina','Alto':'Handia','Muy alto':'Oso handia','Extremo':'Muturrekoa'}[n]+' ('+r+')').join('<br>') + '<br><i style="background:#9aa5a0"></i>Daturik ez'+
+        (A && A.suteakGuztiak && A.suteakGuztiak() ? '<br><i style="background:#ff7a1a;border-radius:50%;opacity:.7;box-shadow:inset 0 0 0 1px #3a1d12"></i>Sutea 2010-2025<br>🔥 Egun honetako sutea' : '');
     }
     leyenda.onAdd = () => { divLeyenda = L.DomUtil.create('div', 'leyenda'); divLeyenda.innerHTML = textoLeyenda(); return divLeyenda; };
     leyenda.addTo(mapa);
 
-    // suteak (EGIF) egun horretan
+    // suteak (EGIF): historiko osoa (puntu txikiak, azaleraren araberako tamainaz) eta egun horretakoak (🔥)
+    const capaHistorico = L.layerGroup().addTo(mapa);
+    let historicoPintado = false;
+    function pintarHistorico(){
+      if (historicoPintado || !A || !A.suteakGuztiak || !A.suteakGuztiak()) return;
+      historicoPintado = true;
+      A.suteakGuztiak().forEach(x => L.circleMarker([x.lat, x.lon], {
+          radius: 2.5 + 2.2*Math.log10(1 + x.ha), color: '#3a1d12', weight: 0.8, opacity: 0.7,
+          fillColor: '#ff7a1a', fillOpacity: 0.45})
+        .bindPopup('<b>Sutea (EGIF)</b><br>'+fmtFecha(x.f)+' · '+A.txtSute(x)+(x.e ? '<br>Eragin-eremua: '+x.e : ''))
+        .addTo(capaHistorico));
+    }
     const capaSuteak = L.layerGroup().addTo(mapa);
     const iconoSute = L.divIcon({className: 'sute-wrap', html: '<div class="sute-ico" aria-hidden="true">🔥</div>', iconSize: [0,0]});
     function pintarSuteak(){
@@ -1511,10 +1523,10 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       if (!A || !A.suteakEgun) return 0;
       const l = A.suteakEgun(estado.fecha);
       l.forEach(x => L.marker([x.lat, x.lon], {icon: iconoSute, keyboard: false})
-        .bindPopup('<b>🔥 Sutea (EGIF)</b><br>'+A.txtSute(x)+(x.e ? '<br>Eremua: '+x.e : '')).addTo(capaSuteak));
+        .bindPopup('<b>🔥 Sutea (EGIF)</b><br>'+A.txtSute(x)+(x.e ? '<br>Eragin-eremua: '+x.e : '')).addTo(capaSuteak));
       return l.length;
     }
-    const overlays = Object.assign({'Estazioak (eguneko FWIa)': capaPins, 'Suteak (EGIF, 2010-2025)': capaSuteak, 'Udalerriak (izena eta eragina)': capaMuni}, wms);
+    const overlays = Object.assign({'Estazioak (eguneko FWIa)': capaPins, 'Suteak 2010-2025 (EGIF)': capaHistorico, 'Egun honetako suteak 🔥': capaSuteak, 'Udalerriak (izena eta eragina)': capaMuni}, wms);
     L.control.layers({'Mapa (OpenStreetMap)': osm, 'Erliebea (OpenTopoMap)': topo}, overlays, {collapsed: true}).addTo(mapa);
 
     // ---- birmarrazketa
@@ -1531,6 +1543,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         if (!mapa.hasLayer(capaZonas)) capaZonas.addTo(mapa);
       }
       capaContorno.bringToFront();
+      pintarHistorico();
       const nSut = pintarSuteak();
       const sin = est.filter(e => !valorDe(e.nombre)).map(e => e.nombre);
       const hayPrev = est.some(e => (valorDe(e.nombre) || {}).prev);
@@ -1538,6 +1551,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         (estado.modo === 'zonas' ? 'Eremu bakoitzak gertuen duen estazioaren FWIa hartzen du (Thiessen poligonoak).' : 'Estazioen balioen interpolazioa, alderantzizko distantziaren arabera.')+
         (sin.length ? ' Egun horretan daturik gabe: '+sin.join(', ')+'.' : '')+
         (nSut ? ' 🔥 EGIFen erregistratutako suteak egun horretan: '+nSut+'.' : '')+
+        (A && A.suteakGuztiak && A.suteakGuztiak() ? ' Puntu laranjak: 2010-2025eko sute guztiak (EGIF), tamaina azaleraren araberakoa; geruzen menuan ezkuta daitezke.' : '')+
         ' Orientagarria: estazio gutxi dira erliebearen, orientazioaren edo erregaiaren tokiko alde guztiak jasotzeko. 💨 hego haizearen abisua adierazten du.';
     }
 
