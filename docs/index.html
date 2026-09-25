@@ -91,6 +91,14 @@ a.ir-met{color:var(--accent);font-weight:600;white-space:nowrap}
 .inf .leg{display:flex;flex-wrap:wrap;gap:4px 10px;margin:8px 0 4px;font-size:8.5pt}
 .inf .leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 .inf .pie{font-size:8pt;color:#444;margin-top:6px}
+.verif{margin-top:12px}
+.verif h3{margin:0 0 4px;font-size:17px}
+.verif table{border-collapse:collapse;width:100%;font-size:14px}
+.verif th,.verif td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.verif th:first-child,.verif td:first-child{text-align:left}
+.verif th{background:var(--field);font-weight:600}
+.verif td.grupo{background:var(--field);font-weight:700;text-align:left}
+.verif .aviso{color:#9a5b00;font-weight:600}
 #metodo{margin-top:8px}
 #metodo .met-intro{font-size:15px;line-height:1.55;max-width:none}
 details.met{border:1px solid var(--line);border-radius:12px;background:var(--card);margin:8px 0;padding:0 16px}
@@ -224,6 +232,12 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     <div class="card">
       <div class="tabla" id="prevTabla"></div>
       <p class="nota" id="prevNota"></p>
+    </div>
+    <div class="card verif" id="verifSec" hidden>
+      <h3>Iragarpenaren fidagarritasuna</h3>
+      <p class="nota" id="verifIntro"></p>
+      <div class="tabla" id="verifTabla"></div>
+      <p class="nota" id="verifNota"></p>
     </div>
   </section>
 
@@ -715,6 +729,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       </button>`;
     }).join('');
     previsionTabla();
+    verificacionTabla();
     detalle();
   }
 
@@ -1032,6 +1047,35 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     }).catch(() => { n.hidden = false; n.textContent = 'Ezin izan da txostena prestatu. Saiatu berriro.'; });
   }
 
+  // ---- Iragarpenaren fidagarritasuna: gordetako iragarpenak geroago neurtutakoarekin alderatuta
+  function verificacionTabla(){
+    const v = DATA.verificacion, sec = $('#verifSec');
+    if (!v || !v.grupos || !Object.keys(v.grupos).length){ sec.hidden = true; return; }
+    sec.hidden = false;
+    const k = MODO === 'ifg' ? 'bgx' : 'fwi', uni = MODO === 'ifg' ? 'puntu' : 'FWI puntu';
+    $('#verifIntro').innerHTML = `Egunero gordetzen den iragarpena geroago neurtutakoarekin alderatuta (${MODO === 'ifg' ? 'Basugix' : 'FWI'}). `+
+      `${v.emisiones} egunetako iragarpenak (${fmtLargo(v.desde)} – ${fmtLargo(v.hasta)}).`;
+    const nombres = {estaciones: 'Estazio guztiak', Gipuzkoa: 'GIPUZKOA'};
+    let h = `<table><thead><tr><th>Aurretik</th><th>Kasuak</th><th>Batez besteko errorea</th><th>Joera</th><th>Tartearen barruan</th><th>Maila asmatua</th></tr></thead><tbody>`;
+    let minN = Infinity;
+    ['estaciones', 'Gipuzkoa'].forEach(g => {
+      const gg = v.grupos[g]; if (!gg) return;
+      h += `<tr><td class="grupo" colspan="6">${nombres[g]}</td></tr>`;
+      ['1','2','3'].forEach(ad => {
+        const r = gg[ad] && gg[ad][k]; if (!r) return;
+        minN = Math.min(minN, r.n);
+        const joera = Math.abs(r.sesgo) < 0.5 ? 'orekatua' : (r.sesgo > 0 ? '+'+fmt(r.sesgo)+' (gehiegi)' : fmt(r.sesgo)+' (gutxiegi)');
+        h += `<tr><td>${ad} egun</td><td>${r.n}</td><td>± ${fmt(r.mae)} ${uni}</td><td>${joera}</td>`+
+             `<td>${r.en_tramo != null ? '% '+r.en_tramo : '—'}</td><td>% ${r.nivel}</td></tr>`;
+      });
+    });
+    $('#verifTabla').innerHTML = h + '</tbody></table>';
+    const poco = minN < 150;
+    $('#verifNota').innerHTML = (poco ? '<span class="aviso">Oraindik datu gutxi: emaitzak orientagarriak dira, eta asteak joan ahala fidagarriagoak izango dira.</span> ' : '') +
+      '<b>Batez besteko errorea</b>: iragarritakoaren eta neurtutakoaren arteko aldea, batez beste. <b>Joera</b>: iragarpena gehiegizkoa (+) ala gutxiegizkoa (−) izan ohi den. '+
+      '<b>Tartearen barruan</b>: benetako balioa iragarpenaren tartean (min–max) zenbat aldiz erori den; % 80 inguru izatea da helburua. <b>Maila asmatua</b>: arrisku-maila zuzen iragarri den aldiz. Azken urteko iragarpenak hartzen dira kontuan.';
+  }
+
   function previsionTabla(){
     const sec = $('#prevSec');
     if (!DATA.estaciones.some(e => conPrevision(e).prev.length)){ sec.hidden = true; return; }
@@ -1070,7 +1114,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     const est = DATA.estaciones[sel];
     $('#detTitle').textContent = 'Xehetasuna: '+nombreVis(est)+(est.codigo?' ('+est.codigo+')':'');
     const dias = (todo ? est.dias : est.dias.slice(-DIAS_POR_DEFECTO)).concat(conPrevision(est).prev);
-    grafico(dias);
+    grafico(dias, est);
     tabla(dias, est);
     climatologia(est);
     $('#eredNota').hidden = !est.modelo;
@@ -1081,7 +1125,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   function climatologia(est){
     const c = (DATA.climatologia || {})[est.nombre];
     const box = $('#clim');
-    if (!c){ box.hidden = true; return; }
+    if (!c || MODO === 'ifg'){ box.hidden = true; return; }   // climatología del FWI: solo en su pestaña
     const meses = ['urtarrila','otsaila','martxoa','apirila','maiatza','ekaina','uztaila','abuztua','iraila','urria','azaroa','abendua'];
     const u = ultimo(est);
     const actual = u && esISO(u.fecha) ? +u.fecha.slice(5,7) : 0;
@@ -1096,16 +1140,25 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     box.hidden = false;
   }
 
-  function grafico(dias){
+  function grafico(dias, est){
     const box = $('#chart');
     if (!dias.length){ box.innerHTML = '<p class="empty">Estazio honek oraindik ez du egunik kalkulatuta.</p>'; return; }
+    const ifg = MODO === 'ifg';
+    // valor y tramo de previsión en la escala de la pestaña (FWI o Basugix)
+    const val = r => valM(r);
+    const tramo = r => {
+      if (!r.prev || r.min == null || r.max == null) return null;
+      if (!ifg) return [r.min, r.max];
+      if (est && est.resumen) return null;
+      return [bgx(ifgDeFwi(r.min, r.fecha, r.dir, r.W)), bgx(ifgDeFwi(r.max, r.fecha, r.dir, r.W))];
+    };
     const n = dias.length, slot = 34, left = 34, H = 190, base = H-26, top = 16;
     const W = Math.max(300,left+n*slot+8);
-    const maxF = Math.max(...dias.map(r => r.prev ? r.max : r.fwi));
+    const maxF = Math.max(...dias.map(r => { const t = tramo(r); return t ? t[1] : (val(r) || 0); }));
     const ymax = Math.max(55,maxF*1.1);
-    const y = v => base-(v/ymax)*(base-top);
-    let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Eguneroko FWIa eta iragarpena">`;
-    [[5.2,'5'],[11.2,'11'],[21.3,'21'],[38,'38'],[50,'50']].forEach(([t,l]) => {
+    const y = v => base-(Math.max(0, v)/ymax)*(base-top);
+    let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Eguneroko ${ifg ? 'Basugix' : 'FWIa'} eta iragarpena">`;
+    (ifg ? [[10,'10'],[20,'20'],[30,'30'],[40,'40'],[50,'50']] : [[5.2,'5'],[11.2,'11'],[21.3,'21'],[38,'38'],[50,'50']]).forEach(([t,l]) => {
       if (t <= ymax){
         s += `<line x1="${left}" x2="${W}" y1="${y(t)}" y2="${y(t)}" stroke="var(--line)" stroke-dasharray="3 4"/>`;
         s += `<text x="${left-6}" y="${y(t)+3}" text-anchor="end" font-size="10" style="fill:var(--muted)">${l}</text>`;
@@ -1115,18 +1168,19 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     dias.forEach((r,i) => {
       const x = left+i*slot+4;
       const lbl = esISO(r.fecha) ? (+r.fecha.slice(8))+'/'+(+r.fecha.slice(5,7)) : '';
-      const h = Math.max(2,base-y(r.fwi));
-      const c = colorDe(r.clase).c;
+      const v = val(r), h = Math.max(2,base-y(v));
+      const c = colorDe(claseM(r)).c;
       s += `<text x="${x+12}" y="${H-8}" text-anchor="middle" font-size="10" style="fill:var(--muted)">${lbl}</text>`;
       if (r.prev){
         if (i > 0 && !dias[i-1].prev) s += `<line x1="${x-5}" x2="${x-5}" y1="${top-8}" y2="${base}" stroke="var(--muted)" stroke-dasharray="2 3"/><text x="${x-2}" y="${top-2}" font-size="10" style="fill:var(--muted)">iragarpena</text>`;
-        const y1 = y(r.max), y2 = y(r.min), xc = x+12;
+        const t = tramo(r), xc = x+12;
+        const y1 = t ? y(t[1]) : base-h, y2 = t ? y(t[0]) : base-h;
         s += `<rect x="${x}" y="${base-h}" width="24" height="${h}" rx="3" fill="${c}" fill-opacity="0.45" stroke="${c}" stroke-width="1.5" stroke-dasharray="3 2"/>`;
-        s += `<path d="M${xc} ${y1}V${y2}M${xc-5} ${y1}H${xc+5}M${xc-5} ${y2}H${xc+5}" stroke="var(--ink)" stroke-width="1.4" fill="none"/>`;
-        s += `<text x="${xc}" y="${y1-4}" text-anchor="middle" font-size="10" font-style="italic" font-weight="600" style="fill:var(--ink)">${fmt(r.fwi)}</text>`;
+        if (t) s += `<path d="M${xc} ${y1}V${y2}M${xc-5} ${y1}H${xc+5}M${xc-5} ${y2}H${xc+5}" stroke="var(--ink)" stroke-width="1.4" fill="none"/>`;
+        s += `<text x="${xc}" y="${Math.min(y1, base-h)-4}" text-anchor="middle" font-size="10" font-style="italic" font-weight="600" style="fill:var(--ink)">${fmtM(v)}</text>`;
       } else {
         s += `<rect x="${x}" y="${base-h}" width="24" height="${h}" rx="3" fill="${c}"/>`;
-        s += `<text x="${x+12}" y="${base-h-4}" text-anchor="middle" font-size="10" font-weight="600" style="fill:var(--ink)">${fmt(r.fwi)}</text>`;
+        s += `<text x="${x+12}" y="${base-h-4}" text-anchor="middle" font-size="10" font-weight="600" style="fill:var(--ink)">${fmtM(v)}</text>`;
       }
     });
     box.innerHTML = s+'</svg>';
