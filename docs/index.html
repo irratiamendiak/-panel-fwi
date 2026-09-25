@@ -87,6 +87,21 @@ section{margin-bottom:22px}
 .inf .leg{display:flex;flex-wrap:wrap;gap:4px 10px;margin:8px 0 4px;font-size:8.5pt}
 .inf .leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 .inf .pie{font-size:8pt;color:#444;margin-top:6px}
+#metodo{margin-top:8px}
+#metodo .met-intro{font-size:15px;line-height:1.55;max-width:none}
+details.met{border:1px solid var(--line);border-radius:12px;background:var(--card);margin:8px 0;padding:0 16px}
+details.met > summary{cursor:pointer;padding:12px 0;font-weight:700;list-style-position:outside}
+details.met[open] > summary{border-bottom:1px solid var(--line);margin-bottom:10px}
+details.met p, details.met li{line-height:1.55}
+details.met ul{padding-left:20px}
+details.met > *:last-child{margin-bottom:14px}
+.tabla-met{overflow-x:auto}
+.tabla-met table{border-collapse:collapse;width:100%;font-size:14px}
+.tabla-met th,.tabla-met td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tabla-met th{background:var(--field)}
+.tabla-met td:nth-child(2),.tabla-met td:nth-child(3){white-space:nowrap}
+.tabla-met td:nth-child(4){white-space:normal;min-width:260px}
+.tabla-met td:nth-child(5){white-space:normal;min-width:120px}
 .inf td:last-child{font-size:8pt;white-space:normal;min-width:30mm}
 .inf td{white-space:nowrap}
 .info-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:6px;border-radius:50%;border:1px solid var(--muted);color:var(--muted);font:italic 700 12px/1 Georgia,serif;cursor:pointer;vertical-align:2px}
@@ -222,34 +237,108 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     <div class="tabla" id="climtabla"></div>
   </details>
 
-  <details>
-    <summary>Nola kalkulatzen den eta zer kontuan hartu</summary>
-    <ul>
-      <li><b>Datuak.</b> Egunero, 12:00ak igaro ondoren, Euskalmetetik deskargatzen dira eguerdiko tenperatura, hezetasuna eta haize-abiadura, eta aurreko 24 orduetako euri metatua.</li>
-      <li><b>Kaskada.</b> FFMCk (erregai fin lehorra), DMCk (erdiko geruza organikoa) eta DCk (geruza sakonak) aurreko egunaren balioa hartzen dute abiapuntu. Horiekin ISI (hasierako hedapena) eta BUI (erregai eskuragarria) lortzen dira, eta bien arteko konbinazioa da FWIa.</li>
-      <li><b>Hutsuneak.</b> Estazio batek egun bateko daturik ez badu, egun hori ez da kalkulatzen, eta hurrengoak azken balio eskuragarritik jarraitzen du. Asterisko (*) daramaten lerroak hutsune baten ondoren datoz eta zehaztasun gutxiago dute. Hutsuneak bi aste baino gehiago irauten badu, kodeak berrabiarazten dira eta hurrengo egunak † markarekin adierazten dira egonkortu arte.</li>
-      <li><b>Pertzentila.</b> Gaurko FWIa 2010etik hona estazio horretako hilabete bereko egun guztiekin alderatzen du. Zuen bezalako klima hezean, kategoria orokorra baino informazio gehiago ematen du, FWI berdina abuztuan ohikoa eta maiatzean salbuespenezkoa izan baitaiteke.</li>
-      <li><b>Datu akastunak.</b> Fisikoki ezinezkoak diren irakurketak (adibidez, % 0,3ko hezetasuna edo 3.000 mm-ko euria egun batean) baztertu egiten dira kalkulatu aurretik.</li>
-      <li><b>Iragarpena.</b> Benetako FWIaren modu berean kalkulatzen da, baina Open-Meteoren eguerdiko aurreikuspen meteorologikoarekin, estazio bakoitzaren joera historikoarekin zuzendua, eta neurtutako azken eguneko kode errealetatik abiatuta. Tarteak adierazten du 2025 eta 2026ko kasuen % 80an non erori zen benetako balioa. Gaur, 12:00ak baino lehen, dagoeneko erori den euria estaziotik hartzen da. 2025-2026 probetan, akatsa egun batera FWIren 3 puntu inguru izan zen, eta hiru egunera 4 inguru — bihar gaur bezalakoa izango dela suposatzea baino ia erdia. Egun muturrekoenetan gutxietsi ohi du.</li>
-      <li><b>Haize-abisua.</b> Hego laurdeneko haizeak (S, SE, SO) sute-ohiko probabilitatea handitu egiten du FWI berdinarekin. Gipuzkoako 2010-2025eko EGIF su-erregistroarekin egindako azterketa batek biderkatzaile hurbil bat kalibratu du FWI mailaren arabera. Ez da FWIa aldatzen: aparteko abisu informatibo bat da, kasu gutxitan oinarritua, eta ez du ordezkatzen FWI zenbaki nagusia.</li>
-      <li><b>ISI.</b> Hedapen-abiadura hasierakoa adierazten du (erregai fin lehorra + haizea, ez du hezetasun sakona kontuan hartzen). EGIF erregistroarekin egindako azterketan FWIa bezain ondo edo hobeto bereizten ditu egun arriskutsuak, batez ere erregai finaren araberako suteetan.</li>
-      <li><b>Mapa.</b> Eragin-eremuek Gipuzkoako puntu bakoitzari hurbilen duen estazioaren FWIa esleitzen diote (Thiessen poligonoak). Gainazal jarraituak bost balioak interpolatzen ditu alderantzizko distantziaren arabera haztatuta. Bost estaziorekin eta erliebe hain aldakorrarekin, orientazio orokorra da, ez mendi bakoitzean neurtutako balioa; landaredia eta arrisku egiturazkoaren geruzek interpretatzen laguntzen dute.</li>
-      <li><b>Gipuzkoa (batez bestekoa).</b> Ez da estazio bat, laburpen bat baizik: puntu guztien balioen batez besteko haztatua, bakoitzaren eragin-eremuaren azaleraren arabera (mapako Thiessen poligonoen azalera bera). Haizea ez da sartzen batez bestekoan, norabide bat batez besteratzeak fisikoki zentzurik ez duelako. Estazio berri bat martxan jarri aurreko egunetan (adibidez, Zarautz 2024 aurretik), lurraldearen zati batekin baino ez da kalkulatzen; % 30etik behera geratzen bada, egun hori ez da erakusten.</li>
-      <li><b>Zarautz.</b> Bi estazio errealen konbinazioa da: tenperatura, hezetasuna, haizea eta norabidea Zarautzeko estaziotik (C064), eta euria Inurritzakotik (C086), udalerri berekoa, Zarautzek ez baitu euri-neurgailurik. Bi neurketa dira, ez eredu bat.</li>
-      <li><b>Mutriku.</b> Ez dauka estazio fisikorik martxan; Open-Meteo ereduaren estimazioa erabiltzen du zuzenean, 2010etik aurrerako historikoarekin (ERA5 datu-basea). Beste bost estazioek bezala kalkulatzen da, baina bertan tokiko neurketarik ez dagoenez, ez dago zuzentzeko edo egiaztatzeko biderik: iragarpenaren ziurgabetasun bera du datu "erreala" ere.</li>
-      <li><b>Latitudea.</b> Eguneko iraupen-faktoreak 46° N inguruko latitudeetarako kalibratuta daude, Euskadikoen antzekoak.</li>
-      <li><b>Erabilera.</b> Tresna orientagarria: ez ditu ordezkatzen abisu ofizialak.</li>
-    </ul>
-    <p class="nota" style="margin-top:14px">Arrisku-mailak (EFFIS irizpidea):</p>
-    <div class="classes">
-      <span class="chip" style="background:#2f8f5b;color:#fff">Oso baxua</span><span>5,2 baino gutxiago</span>
-      <span class="chip" style="background:#8fbf3f;color:#14231c">Baxua</span><span>5,2tik 11,2ra</span>
-      <span class="chip" style="background:#f0c53b;color:#14231c">Ertaina</span><span>11,2tik 21,3ra</span>
-      <span class="chip" style="background:#ee8a2e;color:#14231c">Handia</span><span>21,3tik 38ra</span>
-      <span class="chip" style="background:#d9382b;color:#fff">Oso handia</span><span>38tik 50era</span>
-      <span class="chip" style="background:#7a1f4d;color:#fff">Muturrekoa</span><span>50 baino gehiago</span>
-    </div>
-  </details>
+  <section id="metodo" aria-label="Nola kalkulatzen da indizea">
+    <h2>Nola kalkulatzen da indizea</h2>
+    <p class="nota met-intro"><b>FWIa</b> (<i>Fire Weather Index</i>) Kanadako Baso Zerbitzuak garatutako sistema da, eta Europan EFFISek (Europako Suteen Informazio Sistema) erabiltzen du. Eguraldiak sute bat pizteko eta hedatzeko sortzen duen arriskua neurtzen du: zenbat eta handiagoa, orduan eta errazago piztu eta azkarrago hedatuko litzateke sute bat. Ez du kontuan hartzen su-iturririk dagoen ala ez, ez eta toki bakoitzeko landaredia zehatza ere. Tresna orientagarria da: <b>ez ditu ordezkatzen abisu ofizialak</b>.</p>
+
+    <details class="met">
+      <summary>Datuak eta ordua: eguzki-eguerdia</summary>
+      <p>Egunero <b>eguzki-eguerdiko</b> datuak erabiltzen dira: <b>12:00 UTC</b>, hau da, ordu ofizialean <b>13:00 neguan eta 14:00 udan</b>. Estazio bakoitzeko ordu horretako tenperatura, hezetasun erlatiboa eta haizearen abiadura eta norabidea hartzen dira, eta aurreko <b>24 orduetako euri metatua</b>. Hori da FWI sistemaren irizpide estandarra, eta EFFISek erabiltzen duen bera.</p>
+      <p>Euskalmetek datuak argitaratzeko denbora behar duenez, datuak <b>14:20an eta 14:40an</b> deskargatzen dira, eta <b>15:00etan eguna ixten da</b> (udan; neguan ordubete lehenago). Eguna beti ixten da 14:00etako datuarekin: <b>ez da inoiz geroagoko irakurketarik erabiltzen</b>. Webguneak 14:30etik aurrera erakusten du eguneko datua; ordura arte, aurreko egunekoa. Estazio batean datua oraindik osatu gabe badago, orduan arte neurtutakoarekin kalkulatutako balioa agertzen da, "kalkulatua" markarekin. Orria bost minuturo eguneratzen da bakarrik.</p>
+    </details>
+
+    <details class="met">
+      <summary>Datuak falta direnean</summary>
+      <ul>
+        <li><b>Euria.</b> 24 orduetako 144 irakurketetatik (10 minuturo bat) 6 edo gutxiago falta badira, estazioaren datua erabiltzen da. Gehiago falta badira, edo egun osoa, euria <b>gertuen dagoen estaziotik</b> hartzen da (datu osoak baditu; bestela, hurrengotik). Guztiek huts eginez gero (akats orokorra), Open-Meteo eredutik.</li>
+        <li><b>Tenperatura, hezetasuna eta haizea.</b> 14:00etako irakurketa zehatza falta bada, estazio beraren <b>13:10 eta 14:50 arteko</b> irakurketen artean arriskuari begira txarrena hartzen da: <b>hezetasun txikiena</b> eta <b>tenperatura eta haize handienak</b>. Tarte horretan ezer ez badago, Open-Meteo ereduaren balioa estazioaren koordenatuetan.</li>
+        <li><b>Estazioak datu bat ere ez badu</b> egun batean (matxura, edo estazioa oraindik martxan ez zegoelako), egun hori ez da asmatzen: hutsune gisa geratzen da.</li>
+        <li><b>Datu akastunak.</b> Fisikoki ezinezkoak diren irakurketak (sentsoreen errore-kodeak, % 0ko hezetasuna, 3.000 mm-ko euria...) baztertu egiten dira kalkulatu aurretik.</li>
+        <li>Beteriko datu guztiak historikoan <b>markatuta</b> geratzen dira, zein aldagai eta nondik hartu den adierazita.</li>
+      </ul>
+    </details>
+
+    <details class="met">
+      <summary>FWI sistemaren osagaiak eta kaskada</summary>
+      <ul>
+        <li><b>FFMC</b>: gainazaleko erregai finaren (orbela, belar lehorra) hezetasuna. Egun gutxitan aldatzen da; pizteko erraztasuna adierazten du.</li>
+        <li><b>DMC</b>: geruza organiko ertainaren hezetasuna (aste batzuetako memoria).</li>
+        <li><b>DC</b>: geruza sakonen lehortea (hilabeteetako memoria; lehorte luzeak islatzen ditu).</li>
+        <li><b>ISI</b>: hasierako hedapen-abiadura (FFMC + haizea).</li>
+        <li><b>BUI</b>: erregai eskuragarri osoa (DMC + DC).</li>
+        <li><b>FWI</b>: ISI eta BUI konbinatuta: suaren intentsitate potentziala.</li>
+      </ul>
+      <p>FFMC, DMC eta DC egunez egun kalkulatzen dira, <b>aurreko egunaren baliotik</b> abiatuta (kaskada). Horregatik egun bateko datuek hurrengo egunetan ere eragina dute. Egun bat falta bada, azken balio eskuragarritik jarraitzen da (* markarekin xehetasunean). Hutsunea <b>bi aste baino luzeagoa</b> bada, kodeak berrabiarazten dira, eta hurrengo <b>45 egunak</b> "berotzen" (†) markatzen dira: balio orientagarriak dira, fidagarritasun txikikoak, eta ez dira sartzen klimatologian ez GIPUZKOAko batez bestekoan. Eguneko iraupen-faktoreak 46° N inguruko latitudeetarako daude kalibratuta, Euskadikoen antzekoak.</p>
+    </details>
+
+    <details class="met">
+      <summary>Arrisku-mailak eta pertzentila</summary>
+      <p>Mailak EFFISen irizpidearen araberakoak dira:</p>
+      <div class="classes">
+        <span class="chip" style="background:#2f8f5b;color:#fff">Oso baxua</span><span>5,2 baino gutxiago</span>
+        <span class="chip" style="background:#8fbf3f;color:#14231c">Baxua</span><span>5,2tik 11,2ra</span>
+        <span class="chip" style="background:#f0c53b;color:#14231c">Ertaina</span><span>11,2tik 21,3ra</span>
+        <span class="chip" style="background:#ee8a2e;color:#14231c">Handia</span><span>21,3tik 38ra</span>
+        <span class="chip" style="background:#d9382b;color:#fff">Oso handia</span><span>38tik 50era</span>
+        <span class="chip" style="background:#7a1f4d;color:#fff">Muturrekoa</span><span>50 baino gehiago</span>
+      </div>
+      <p><b>Pertzentilak</b> eguneko FWIa estazio horretako <b>hilabete bereko</b> egun historiko guztiekin alderatzen du (2010etik). Adibidez, "90. pertzentila" esan nahi du hilabete horretako egunen % 90ek FWI txikiagoa izan zutela. Klima hezean kategoria orokorrak baino informazio gehiago ematen du: FWI berdina ohikoa izan daiteke abuztuan eta salbuespenezkoa martxoan.</p>
+    </details>
+
+    <details class="met">
+      <summary>Estazioak eta horien berezitasunak</summary>
+      <div class="tabla-met"><table>
+        <thead><tr><th>Estazioa</th><th>Kodea</th><th>Altuera</th><th>Berezitasunak</th><th>Euria falta bada</th></tr></thead>
+        <tbody>
+          <tr><td>Altzola</td><td>C078</td><td>30 m</td><td>Ez du haize-neurgailurik: haizea (abiadura eta norabidea) Open-Meteo ereduarena da estazioaren koordenatuetan. Tenperatura, hezetasuna eta euria neurketa errealak dira.</td><td>Arrasate, Bidania</td></tr>
+          <tr><td>Arrasate</td><td>C023</td><td>318 m</td><td>Deba ibarraren goiko aldea.</td><td>Zegama, Altzola</td></tr>
+          <tr><td>Berastegi</td><td>C026</td><td>379 m</td><td>2021eko ekainetik 2022ko ekainera ez dago daturik argitaratuta.</td><td>Zizurkil, Bidania</td></tr>
+          <tr><td>Bidania</td><td>C058</td><td>592 m</td><td>Estazio altuena.</td><td>Zizurkil, Ordizia</td></tr>
+          <tr><td>Miramon</td><td>C017</td><td>113 m</td><td>Donostia.</td><td>Pasaia, Zizurkil</td></tr>
+          <tr><td>Mutriku</td><td>—</td><td>20 m</td><td>Ez dago estazio fisikorik: Open-Meteo ereduaren estimazioa da, kostaldeko hutsunea betetzeko (🖥️ eredua). Ez dago tokiko neurketarik zuzentzeko edo egiaztatzeko.</td><td>—</td></tr>
+          <tr><td>Ordizia</td><td>C043</td><td>153 m</td><td>Goierri. 2025eko otsailetik urrira ez dago daturik argitaratuta.</td><td>Bidania, Zegama</td></tr>
+          <tr><td>Pasaia</td><td>B096</td><td>0 m</td><td>Badia-ahoko itsas plataforma. Hezetasuna eta euria maiz falta dira, eta askotan beteta daude (euria, gehienetan, Miramonetik).</td><td>Miramon</td></tr>
+          <tr><td>Zarautz</td><td>C064</td><td>10 m</td><td>Bi estazio errealen konbinazioa: tenperatura, hezetasuna eta haizea Zarautzekoak, eta euria Inurritzakoa (C086), udalerri berean, Zarautzek ez baitu euri-neurgailurik. 2021eko abendutik 2024ko uztailera ez dago daturik argitaratuta.</td><td>Inurritzak huts eginez gero: Zizurkil, Bidania</td></tr>
+          <tr><td>Zegama</td><td>C028</td><td>520 m</td><td>Goierri, Aizkorriren magalean.</td><td>Ordizia, Arrasate</td></tr>
+          <tr><td>Zizurkil</td><td>C029</td><td>115 m</td><td>Oria ibarra, Tolosaldea.</td><td>Bidania, Berastegi</td></tr>
+        </tbody>
+      </table></div>
+      <p>Historikoa estazio bakoitza martxan jarri zenetik dago (gehienak 2010etik), Open Data Euskadiko 10 minuturo irakurketekin kalkulatua, eta egunero Euskalmeten APIarekin eguneratzen da.</p>
+    </details>
+
+    <details class="met">
+      <summary>Eragin-eremuak eta mapa</summary>
+      <p>Gipuzkoako puntu bakoitza bere <b>estazio hurbilenari</b> esleitzen zaio (Thiessen poligonoak): horiek dira estazio bakoitzaren <b>eragin-eremuak</b>. Mapak bi modutan erakusten du arriskua:</p>
+      <ul>
+        <li><b>Gainazal jarraitua</b>: estazioen FWIak interpolatzen ditu, puntu bakoitzean estazio hurbilenei pisu handiagoa emanez (alderantzizko distantzia). Trantsizio leunak ematen ditu.</li>
+        <li><b>Eragin-eremuak</b>: eremu bakoitzak bere estazioaren FWIa hartzen du osorik.</li>
+      </ul>
+      <p>Estazio gutxirekin eta erliebe hain aldakorrarekin, mapa <b>orientazio orokorra</b> da, ez mendi bakoitzean neurtutako balioa: ez ditu jasotzen orientazioaren, altueraren edo erregaiaren tokiko aldeak. Landarediaren eta arrisku egiturazkoaren geruzek interpretatzen laguntzen dute. Mapak, txartelek eta haien barrek beti egun bera eta balio berak erakusten dituzte.</p>
+    </details>
+
+    <details class="met">
+      <summary>GIPUZKOA: lurraldeko batez bestekoa</summary>
+      <p>Ez da estazio bat, laburpen bat baizik: estazioen <b>FWIen batez besteko haztatua</b>, bakoitzaren eragin-eremuaren <b>azaleraren</b> arabera. Indizeak soilik batez besteratzen dira: tenperatura, hezetasuna, euria edo haizea batez besteratzeak ez du zentzurik, kostaldea eta barnealdea nahasten dituelako. FWIa ez-lineala denez, zuzenagoa da estazio bakoitzaren arriskua batez besteratzea, eguraldi "ertain" batekin kalkulatzea baino.</p>
+      <p>Egun jakin batean daturik ez duten edo "berotzen" dauden estazioak kanpoan geratzen dira, eta txartelak lurraldearen zein ehunekorekin kalkulatu den adierazten du; % 30etik behera bada, ez da erakusten. Hiru eguneko iragarpena ere estazioen iragarpenen batez besteko haztatua da.</p>
+    </details>
+
+    <details class="met">
+      <summary>Hego haizearen abisua (💨)</summary>
+      <p>FWIak haizearen <b>abiadura</b> hartzen du kontuan, baina ez <b>norabidea</b>. Gipuzkoan hego haizea (foehn motakoa) lehorra eta beroa da: landaredia oso azkar lehortzen du, eta sute askoren atzean dago, batez ere neguan eta udaberrian.</p>
+      <p>Horregatik, abisu bat gehitzen da haizea <b>hego-ekialdetik, hegoaldetik edo hego-mendebaldetik</b> (120°–240°) datorrenean, <b>3 km/h edo gehiagoko</b> abiaduraz. Gipuzkoako 2010-2025eko <b>EGIF</b> sute-erregistroarekin kalibratu da (497 sute eta 63.831 estazio-egun): FWI berarekin, hego haizea zegoen egunetan <b>2,7 aldiz sute gehiago</b> izan ziren (% 95eko tartea: 2,3–3,3 inguru). Proba egin ziren abiadura-atalase guztien artean, 3 km/h izan zen datuei hobekien egokitzen zitzaiena: garrantzitsuena norabidea da, eta atalase txiki horrek kalma-egunak bakarrik baztertzen ditu.</p>
+      <p>Abisuak <b>ez du FWIa aldatzen</b>: aparteko informazioa da, eta biderkatzailea gutxi gorabeherakoa da.</p>
+    </details>
+
+    <details class="met">
+      <summary>Hiru eguneko iragarpena</summary>
+      <p>Benetako FWIaren modu berean kalkulatzen da, baina <b>Open-Meteoren</b> eguzki-eguerdiko iragarpen meteorologikoarekin, estazio bakoitzaren joera historikoarekin zuzendua, eta neurtutako azken eguneko kodeetatik abiatuta. Balioaren azpiko tarteak adierazten du 2025 eta 2026ko kasuen % 80 inguruan non erori zen benetako balioa. Probetan, akatsa egun batera FWIren 3 puntu ingurukoa izan zen, eta hiru egunera 4 ingurukoa; egun muturrekoenetan gutxietsi ohi du. Egun bakoitzeko iragarpena gordetzen da, gero neurtutakoarekin alderatu eta fidagarritasuna egiaztatzeko.</p>
+    </details>
+
+    <details class="met">
+      <summary>Iraganeko egunak eta txostenak</summary>
+      <p>Goiko <b>Eguna</b> hautatzailearekin 2010etik aurrerako edozein egun ikus daiteke: txartelek, GIPUZKOAk eta mapak egun horretako egoera erakusten dute. <b>📄 Txostena (PDF)</b> botoiak egun bateko edo bi dataren arteko aldi bateko txostena sortzen du, hautatutako txartelarena (GIPUZKOA hautatuta badago, lurralde osoarena), mapa, grafikoak eta taulak barne.</p>
+    </details>
+  </section>
 </main>
 <div id="informe" hidden></div>
 <dialog id="dlgInf" aria-labelledby="dlgInfTit">
@@ -336,7 +425,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const fechaMaxima = () => DATA.estaciones.reduce((m, e) => (e.prevision || []).reduce((mm, p) => p.fecha > mm ? p.fecha : mm, m), fechaActual());
   const primeraEnJson = () => DATA.estaciones.reduce((m, e) => e.dias.length && e.dias[0].fecha < m ? e.dias[0].fecha : m, '9999-99-99');
   function ponerFecha(f){
-    if (!f || f === fechaActual()) FECHA = null;
+    if (!f || f === (diaFijado() ? hoyISO() : fechaActual())) FECHA = null;
     else FECHA = f < '2010-01-01' ? '2010-01-01' : (f > fechaMaxima() ? fechaMaxima() : f);
     if (FECHA && FECHA < primeraEnJson() && !HIST){
       const n = $('#fEstado'); n.hidden = false; n.textContent = 'Historikoa kargatzen…';
@@ -346,17 +435,51 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     }
     aplicarFecha();
   }
+  // ---- Fecha y valor que se ven: UNA sola fuente para tarjetas, barras, mapa e informe.
+  // Sin fecha elegida: hasta la hora en que se fija el día se ve el último día medido; desde entonces,
+  // el día de hoy (medido o, si aún falta en alguna estación, calculado con lo medido hasta ahora).
+  function fechaVista(){
+    if (FECHA) return FECHA;
+    return diaFijado() ? hoyISO() : fechaActual();
+  }
+  function valorVista(est, f){
+    if (!FECHA && f === hoyISO() && diaFijado()){
+      const u = ultimo(est);
+      if (u && u.fecha === f) return u;
+      const p = (est.prevision || []).find(x => x.fecha === f);
+      return p ? Object.assign({}, p, {calculado: true}) : null;
+    }
+    return diaEst(est, f);
+  }
   function aplicarFecha(){
     render();
-    document.dispatchEvent(new CustomEvent('fwi-fecha', {detail: FECHA || fechaActual()}));
+    document.dispatchEvent(new CustomEvent('fwi-fecha', {detail: fechaVista()}));
   }
-  window.FWI_API = {diaHist: (n, f) => diaHist(n, f)};
+  window.FWI_API = {
+    diaHist: (n, f) => diaHist(n, f),
+    fechaVista: () => fechaVista(),
+    valor: (n, f) => { const e = DATA && DATA.estaciones.find(x => x.nombre === n); return e ? valorVista(e, f) : null; }
+  };
+  // ---- Refresco automático: cada 5 minutos comprueba si hay datos nuevos o si ha llegado la hora de
+  // fijar el día, y entonces actualiza a la vez tarjetas, barras, mapa y tablas.
+  let fijadoAntes = null;
+  function refrescar(){
+    if (!DATA) return;
+    fetch('data/fwi.json', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
+      const nuevo = d && d.actualizado !== DATA.actualizado;
+      if (nuevo){ DATA = d; window.FWI_DATA = d; }
+      const fij = diaFijado();
+      if (nuevo || fij !== fijadoAntes){ fijadoAntes = fij; aplicarFecha(); }
+    }).catch(() => {});
+  }
+  setInterval(refrescar, 5*60*1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refrescar(); });
   let fechaIniciada = false;
   function iniciarFecha(){
     if (fechaIniciada) return; fechaIniciada = true;
     $('#fSel').addEventListener('change', e => { if (esISO(e.target.value)) ponerFecha(e.target.value); });
-    $('#fPrev').addEventListener('click', () => ponerFecha(masDias(FECHA || fechaActual(), -1)));
-    $('#fNext').addEventListener('click', () => ponerFecha(masDias(FECHA || fechaActual(), 1)));
+    $('#fPrev').addEventListener('click', () => ponerFecha(masDias(fechaVista(), -1)));
+    $('#fNext').addEventListener('click', () => ponerFecha(masDias(fechaVista(), 1)));
     $('#fHoy').addEventListener('click', () => ponerFecha(null));
     $('#fPdf').addEventListener('click', abrirInforme);
     $('#infCancel').addEventListener('click', () => $('#dlgInf').close());
@@ -371,7 +494,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
   fetch('data/fwi.json',{cache:'no-store'})
     .then(r => { if (!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(d => { DATA = d; window.FWI_DATA = d; render(); iniciarFecha(); document.dispatchEvent(new Event('fwi-datos')); })
+    .then(d => { DATA = d; window.FWI_DATA = d; fijadoAntes = diaFijado(); render(); iniciarFecha(); document.dispatchEvent(new Event('fwi-datos')); })
     .catch(() => {
       $('#upd').innerHTML = '<span class="msg">Ezin izan dira datuak kargatu. Fitxategia diskotik zuzenean ireki baduzu, argitaratu web batean (adibidez GitHub Pages) data/fwi.json irakurri ahal izateko.</span>';
     });
@@ -438,10 +561,11 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     const fAct = fechaActual();
     $('#stTitle').textContent = !FECHA ? 'Azken irakurketa kalkulatua'
       : (FECHA > fAct ? 'Iragarpena: ' : 'Egoera: ') + fmtFechaLuzea(fecha(FECHA));
-    $('#fSel').value = FECHA || fAct; $('#fSel').max = fechaMaxima();
+    $('#fSel').value = fechaVista(); $('#fSel').max = fechaMaxima();
     $('#fHoy').disabled = !FECHA;
     $('#stations').innerHTML = DATA.estaciones.map((est,i) => {
-      const u = FECHA ? diaEst(est, FECHA) : (hoyCalculado(est) || ultimo(est));
+      const fv = fechaVista();
+      const u = FECHA ? diaEst(est, FECHA) : (valorVista(est, fv) || ultimo(est));
       if (!u && FECHA) return `<button class="st${est.resumen?' resumen':''}" type="button" data-st="${i}" aria-pressed="${i===sel}"><span class="st-name">${nombreVis(est)}</span><span class="st-val">—</span><span class="st-date">${fmtFecha(FECHA)} · daturik ez</span></button>`;
       if (!u) return `<button class="st" type="button" data-st="${i}" aria-pressed="${i===sel}"><span class="st-name">${est.nombre}</span><span class="st-val">—</span><span class="chip">Daturik ez</span></button>`;
       const col = colorDe(u.clase);
@@ -475,7 +599,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         ${est.resumen ? '' : chipViento(u)}
         ${notaEst}
         ${linPrev}
-        ${spark(FECHA ? Array.from({length: 10}, (_, k) => diaEst(est, masDias(FECHA, k-9))).filter(d => d && !d.prev) : est.dias)}
+        ${spark(Array.from({length: 10}, (_, k) => valorVista(est, masDias(fv, k-9))).filter(d => d && (!d.prev || d.calculado)))}
       </button>`;
     }).join('');
     previsionTabla();
@@ -573,7 +697,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
   // --- egun bakarreko txostena
   function htmlDia(f, geo){
-    const val = est => (f === fechaActual() && !FECHA) ? (hoyCalculado(est) || diaEst(est, f) || ultimo(est)) : diaEst(est, f);
+    const val = est => valorVista(est, f);
     const porNombre = {}; DATA.estaciones.forEach(e => { porNombre[e.nombre] = val(e); });
     const gip = DATA.estaciones.find(e => e.resumen), dg = gip ? porNombre[gip.nombre] : null;
     const esPrev = f > fechaActual();
@@ -692,7 +816,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     return c ? `Hilabete honetako klimatologia (${c.n} egun): mediana ${fmt(c.p50)} · P75 ${fmt(c.p75)} · P90 ${fmt(c.p90)} · P98 ${fmt(c.p98)}` : '';
   }
   function htmlDiaEstacion(e, f, geo){
-    const valor = x => (f === fechaActual() && !FECHA) ? (hoyCalculado(x) || diaEst(x, f) || ultimo(x)) : diaEst(x, f);
+    const valor = x => valorVista(x, f);
     const d = valor(e);
     const porNombre = {}; DATA.estaciones.forEach(x => { porNombre[x.nombre] = valor(x); });
     const col = d ? colorDe(d.clase) : {c:'#c9d0cc', fg:'#111'};
@@ -766,7 +890,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   }
 
   function abrirInforme(){
-    const f = FECHA || fechaActual();
+    const f = fechaVista();
     $('#infDesde').value = f; $('#infHasta').value = f;
     $('#infDesde').max = fechaMaxima(); $('#infHasta').max = fechaMaxima();
     $('#infAviso').hidden = true;
@@ -1016,7 +1140,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     });
     if (fMax < fMin){ $('#mapaNota').textContent = 'Oraindik ez dago mapan erakusteko kalkulatutako egunik.'; return; }
     if (fReal === '0000-00-00') fReal = fMax;
-    const estado = {fecha: fReal, modo: 'idw', op: 0.65};
+    const estado = {fecha: window.FWI_API ? window.FWI_API.fechaVista() : fReal, modo: 'idw', op: 0.65};
 
     // ---- oinarrizko mapa eta geruzak
     const mapa = L.map('mapa', {minZoom: 8, maxZoom: 17}).fitBounds([[42.88,-2.66],[43.42,-1.70]]);
@@ -1027,9 +1151,12 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
     // ---- kontornoa, eremuak, udalerriak, estazioak
     const capaContorno = L.geoJSON(contorno, {style: {fill: false, color: '#14231c', weight: 2, opacity: 0.9}, interactive: false}).addTo(mapa);
+    // mismo valor que la tarjeta de esa estación para la fecha que se ve (medido, calculado,
+    // previsión o histórico)
     const valorDe = nombre => {
-      const m = porFecha[nombre], d = m ? m.get(estado.fecha) : null;
-      return d || (window.FWI_API ? window.FWI_API.diaHist(nombre, estado.fecha) : null);
+      if (window.FWI_API) return window.FWI_API.valor(nombre, estado.fecha);
+      const m = porFecha[nombre];
+      return m ? (m.get(estado.fecha) || null) : null;
     };
     window.FWI_GEO = {zonas, contorno};
     const textoFWI = (nombre) => {
@@ -1159,7 +1286,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       $('#mapaNota').textContent = fmtFecha(estado.fecha)+(hayPrev ? ' (IRAGARPENA: etiketen ertz etenak neurtutako datuetatik bereizten du). ' : '. ')+
         (estado.modo === 'zonas' ? 'Eremu bakoitzak gertuen duen estazioaren FWIa hartzen du (Thiessen poligonoak).' : 'Estazioen FWIen interpolazioa, alderantzizko distantziaren arabera.')+
         (sin.length ? ' Egun horretan daturik gabe: '+sin.join(', ')+'.' : '')+
-        ' Orientagarria: bost estaziok ez dituzte jasotzen erliebearen, orientazioaren edo erregaiaren tokiko aldeak. 💨 hego haizearen abisua adierazten du.';
+        ' Orientagarria: estazio gutxi dira erliebearen, orientazioaren edo erregaiaren tokiko alde guztiak jasotzeko. 💨 hego haizearen abisua adierazten du.';
     }
 
     // ---- kontrolak
