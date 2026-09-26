@@ -159,9 +159,17 @@ def enviar_correo(asunto, cuerpo_html, prueba=False):
     lista = [x.strip() for x in dest.split(",") if x.strip()]
     m["To"] = m["From"]            # destinatarios en copia oculta, para no mostrar las direcciones
     m.attach(MIMEText(cuerpo_html, "html", "utf-8"))
-    with smtplib.SMTP_SSL(host, int(os.environ.get("SMTP_PORT") or 465), context=ssl.create_default_context()) as s:
-        s.login(usu, pw)
-        s.sendmail(usu, lista, m.as_string())
+    try:
+        with smtplib.SMTP_SSL(host, int(os.environ.get("SMTP_PORT") or 465), context=ssl.create_default_context(), timeout=60) as s:
+            s.login(usu, pw)
+            s.sendmail(usu, lista, m.as_string())
+    except smtplib.SMTPAuthenticationError:
+        raise
+    except Exception:                                   # si se corta la conexión SSL, STARTTLS por el 587
+        with smtplib.SMTP(host, 587, timeout=60) as s:
+            s.starttls(context=ssl.create_default_context())
+            s.login(usu, pw)
+            s.sendmail(usu, lista, m.as_string())
 
 
 # ---------------------------------------------------------------- correo: informe del día y previsión
@@ -353,7 +361,26 @@ def main():
     p.add_argument("--prueba", action="store_true", help="No envía nada; muestra y guarda lo que enviaría")
     p.add_argument("--forzar", action="store_true", help="Envía aunque ya se haya enviado hoy o no sea la hora")
     p.add_argument("--fallo", metavar="URL", help="Aviso técnico: el proceso ha fallado")
+    p.add_argument("--prueba-envio", action="store_true", help="Envía un correo y un Telegram de prueba (configuración)")
     a = p.parse_args()
+    if a.prueba_envio:
+        ok = True
+        try:
+            enviar_telegram("✅ <b>Basugix</b>: Telegram abisuak ondo daude (GitHub-etik bidalia).\n"
+                            "✅ <b>Basugix</b>: los avisos por Telegram funcionan (enviado desde GitHub).")
+            print("Telegram: bidalia / enviado" if os.environ.get("TELEGRAM_TOKEN") else "Telegram: sin configurar")
+        except Exception as e:
+            ok = False; print("Telegram: ERROR", e)
+        try:
+            if os.environ.get("SMTP_USER"):
+                enviar_correo("Basugix: proba / prueba", "<p>✅ <b>Basugix</b>: posta elektronikoa ondo dago (GitHub-etik bidalia).<br>"
+                              "✅ <b>Basugix</b>: el correo funciona (enviado desde GitHub).</p>")
+                print("Correo: enviado")
+            else:
+                print("Correo: sin configurar")
+        except Exception as e:
+            ok = False; print("Correo: ERROR", e)
+        return 0 if ok else 1
     if a.fallo:
         aviso_tecnico(f"Eguneratze-prozesuak huts egin du. Ikusi: {a.fallo}",
                       f"El proceso de actualización ha fallado. Ver: {a.fallo}", a.prueba)
