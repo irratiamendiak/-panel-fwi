@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="eu">
 <head>
+<script>
+  // Hizkuntza / Idioma: euskara lehenetsia. ?lang=es edo ?lang=eu; aukera gogoratu egiten da.
+  (function(){
+    var q = new URLSearchParams(location.search).get('lang'), g = null;
+    try { g = localStorage.getItem('fwi-lang'); } catch(e) {}
+    var l = (q === 'es' || q === 'eu') ? q : (g === 'es' ? 'es' : 'eu');
+    try { localStorage.setItem('fwi-lang', l); } catch(e) {}
+    window.LANG = l; document.documentElement.lang = l;
+  })();
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Gipuzkoako baso sute arrisku indizeak</title>
@@ -49,6 +59,10 @@ section{margin-bottom:22px}
 .st[aria-pressed="true"]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
 .st-name{font-family:var(--f-head);font-weight:700;font-size:16px}
 .st{position:relative}
+.idioma{position:absolute;top:14px;right:16px;display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card);z-index:5}
+.idioma button{font:inherit;font-weight:700;font-size:13px;padding:5px 11px;border:0;background:none;color:var(--muted);cursor:pointer}
+.idioma button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+html[lang="es"] [data-lang="eu"], html[lang="eu"] [data-lang="es"]{display:none !important}
 .sute-ico{position:absolute;transform:translate(-50%,-60%);font-size:17px;line-height:1;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 1px 2px rgba(0,0,0,.6));pointer-events:auto;cursor:pointer}
 .pestanas{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap}
 .pestanas button{font:inherit;font-weight:700;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
@@ -189,17 +203,84 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 .leaflet-popup-content{margin:12px 14px;line-height:1.45}
 </style>
 </head>
-<body>
+<body style="position:relative">
+<script>
+  // ---- Hizkuntza-hautatzailea eta gaztelaniarako itzulpen-geruza.
+  // Programak euskaraz idazten du; ES aukeratuta, orrian agertzen den testua (txartelak, taulak, mapa,
+  // leihoak, txostenak...) hiztegi honekin itzultzen da. data-lang="eu|es" duten blokeak dagoeneko
+  // hizkuntza bakoitzean idatzita daude, eta ez dira ukitzen.
+  (function(){
+    document.addEventListener('click', ev => {
+      const b = ev.target.closest && ev.target.closest('.idioma button');
+      if (!b) return;
+      try { localStorage.setItem('fwi-lang', b.dataset.l); } catch(e) {}
+      const u = new URL(location.href); u.searchParams.delete('lang');
+      if (b.dataset.l === 'es') u.searchParams.set('lang', 'es');
+      location.href = u.toString();
+    });
+    const marcar = () => document.querySelectorAll('.idioma button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.l === window.LANG)));
+    document.addEventListener('DOMContentLoaded', marcar);
+    if (window.LANG !== 'es') return;
+    const RX = [["Hilabeteko (\\d+)\\. pertzentila", "Percentil $1 del mes"], ["(\\d+)\\. pertzentila", "percentil $1"], ["Gipuzkoako % (\\d+)ekin kalkulatua", "Calculado con el $1 % de Gipuzkoa"], ["lurraldearen % (\\d+)", "$1 % del territorio"], ["🔥 1 sute eragin-eremuan", "🔥 1 incendio en su zona"], ["🔥 (\\d+) sute eragin-eremuan", "🔥 $1 incendios en su zona"], ["🔥 1 sute Gipuzkoan", "🔥 1 incendio en Gipuzkoa"], ["🔥 (\\d+) sute Gipuzkoan", "🔥 $1 incendios en Gipuzkoa"], ["🔥 (\\d+) sute \\(EGIF\\)", "🔥 $1 incendios (EGIF)"], ["🔥 1 sute\\b", "🔥 1 incendio"], ["🔥 (\\d+) sute\\b", "🔥 $1 incendios"], ["×([\\d,]+) sute-probabilitatea egun ertain batekiko", "×$1 probabilidad de incendio respecto a un día medio"], ["×([\\d,]+) egun ertainarekiko", "×$1 respecto a un día medio"], ["\\((\\d+) egun, (\\d+) datuekin\\)", "($1 días, $2 con datos)"], ["(\\d+) egunetako iragarpenak", "Previsiones de $1 días"], ["(\\d+) egun daturik gabe aldian", "$1 días sin datos en el periodo"], ["(\\d+) egun datu gabe", "$1 días sin datos"], ["(\\d+) egun balioak berotzen", "$1 días con valores en calentamiento"], ["(\\d+) berotzen", "$1 en calentamiento"], ["(\\d+) egun ≥ Handia", "$1 días ≥ Alto"], ["Lehenengo (\\d+)ak soilik; guztira (\\d+)\\.", "Solo los primeros $1; en total $2."], ["\\(([\\d.,]+) ha guztira\\)", "($1 ha en total)"], ["EGIF erregistroak (\\d{4})-(\\d{4}) urteak hartzen ditu\\.", "El registro EGIF abarca los años $1-$2."], ["Ikusi azken (\\d+) egunak soilik", "Ver solo los últimos $1 días"], ["Ikusi historial osoa \\((\\d+) egun\\)", "Ver el historial completo ($1 días)"], ["(\\d+):00ko datuak\\.", "datos de las $1:00."], ["(\\d+):00etako datua osatu aurretik\\.", "antes de completarse el dato de las $1:00."], ["Hilabete honetako klimatologia \\((\\d+) egun\\): mediana", "Climatología de este mes ($1 días): mediana"], ["Daturik ez (.+?)\\(e\\)an\\.", "Sin datos el $1."], ["† Kodeak (\\d+) egun baino gutxiago direla berrabiarazi ziren: balioa orientagarria da eta ez du historikorako balio\\.", "† Los códigos se reiniciaron hace menos de $1 días: el valor es orientativo y no cuenta para el histórico."], ["Euririk gabe:", "Sin lluvia:"], ["\\b1 egun\\b", "1 día"], ["(\\d+) egun\\b", "$1 días"]].map(([r, t]) => [new RegExp(r, 'g'), t]);
+    const EX = [["Puntu honetako haizea (abiadura eta norabidea) Open-Meteo ereduaren estimazioa da Altzolako koordenatuetan, ez neurketa bat: estazioak (C078) ez du haize-neurgailurik, eta ez dago ondoan halakorik duen beste estaziorik. Tenperatura, hezetasuna eta euria estazio errealekoak dira.", "El viento (velocidad y dirección) de este punto es una estimación del modelo Open-Meteo en las coordenadas de Altzola, no una medición: la estación (C078) no tiene anemómetro y no hay ninguna estación cercana que lo tenga. La temperatura, la humedad y la lluvia son de la estación real."], ["Ez da estazio bat: puntu guztien batez besteko haztatua da, bakoitzaren eragin-eremuaren azaleraren arabera (mapako Thiessen poligonoak). Haizea ez da batez besteratzen (norabide bat batez besteratzeak ez du zentzurik).", "No es una estación: es la media ponderada de todos los puntos según la superficie de su zona de influencia (polígonos de Thiessen del mapa). El viento no se promedia (promediar una dirección no tiene sentido)."], ["Mapa: aldiko batez bestekoaren gainazal jarraitua (estazioen balioen interpolazioa, alderantzizko distantziaren arabera). Mailen zutabeak: maila bakoitzeko egun kopurua. Neurtutako egunak soilik (iragarpenik gabe).", "Mapa: superficie continua de la media del periodo (interpolación de los valores de las estaciones según la distancia inversa). Columnas de niveles: número de días en cada nivel. Solo días medidos (sin previsiones)."], ["2010etik aurrerako eguerdiko FWI balioak, datu akastunik eta berotze-egunik gabe. Mediana egun tipikoa da; P90 eta P98, hilabete horretako egun oso eta guztiz altuak.", "Valores del FWI al mediodía desde 2010, sin datos erróneos ni días de calentamiento. La mediana es el día típico; P90 y P98, los días muy y extremadamente altos de ese mes."], ["🖥️ Puntu hau ez dago estazio fisiko baten gainean: Open-Meteo ereduaren estimazioa da (ez neurketa), tokiko estaziorik gabe zuzendu edo egiaztatu gabea.", "🖥️ Este punto no corresponde a una estación física: es una estimación del modelo Open-Meteo (no una medición), sin estación local con la que corregirla o comprobarla."], ["Mapa: aldiko batez bestekoaren gainazal jarraitua; marra lodiak estazio honen eragin-eremua mugatzen du. Neurtutako egunak soilik (iragarpenik gabe).", "Mapa: superficie continua de la media del periodo; la línea gruesa delimita la zona de influencia de esta estación. Solo días medidos (sin previsiones)."], ["Orientagarria: estazio gutxi dira erliebearen, orientazioaren edo erregaiaren tokiko alde guztiak jasotzeko. 💨 hego haizearen abisua adierazten du.", "Orientativo: hay pocas estaciones para recoger todas las diferencias locales de relieve, orientación o combustible. 💨 indica aviso de viento sur."], ["Balio bakoitzaren azpian, 2025 eta 2026an ebaluatutako kasuen % 80 inguru hartzen duen tartea. \"Kalkulatua\": egungo balioa, ", "Bajo cada valor, el rango que abarca alrededor del 80 % de los casos evaluados en 2025 y 2026. \"Calculado\": valor de hoy, "], ["Puntu honetako euria Inurritzako estaziotik (C086) hartzen da, udalerri berean: Zarautzek (C064) ez du euri-neurgailurik.", "La lluvia de este punto se toma de la estación de Inurritza (C086), en el mismo municipio: Zarautz (C064) no tiene pluviómetro."], ["💨: hego laurdeneko haizearekin, sute-arriskuaren biderkatzaile hurbila (EGIF erregistroarekin kalibratua, informatiboa).", "💨: con viento del cuadrante sur, multiplicador aproximado del riesgo de incendio (calibrado con el registro EGIF, informativo)."], ["Letra etzaneko lerroak: iragarpena, bere ohiko tartearekin (kasuen % 80); T, HR eta haize balioak zuzenduak dira.", "Filas en cursiva: previsión, con su rango habitual (80 % de los casos); T, HR y viento están corregidos."], ["Mapa: gainazal jarraitua (estazioen balioen interpolazioa); marra lodiak estazio honen eragin-eremua mugatzen du.", "Mapa: superficie continua (interpolación de los valores de las estaciones); la línea gruesa delimita la zona de influencia de esta estación."], [": benetako balioa iragarpenaren tartean (min–max) zenbat aldiz erori den; % 80 inguru izatea da helburua.", ": veces que el valor real cayó dentro del rango previsto (mín–máx); lo deseable es alrededor del 80 %."], ["Pertzentila: eguna 2010etik hona hilabete bereko egun guztien artean duen posizioa (100 = altuenetakoa).", "Percentil: posición del día entre todos los días del mismo mes desde 2010 (100 = de los más altos)."], ["Oraindik datu gutxi: emaitzak orientagarriak dira, eta asteak joan ahala fidagarriagoak izango dira.", "Todavía hay pocos datos: los resultados son orientativos y serán más fiables con las semanas."], ["Ezin izan dira maparen datu geografikoak kargatu (data karpeta: zonas, gipuzkoa eta municipios).", "No se han podido cargar los datos geográficos del mapa (carpeta data: zonas, gipuzkoa y municipios)."], ["Mapa: gainazal jarraitua (estazioen balioen interpolazioa, alderantzizko distantziaren arabera).", "Mapa: superficie continua (interpolación de los valores de las estaciones según la distancia inversa)."], ["Ezin izan da maparen liburutegia kargatu (Leaflet). Egiaztatu konexioa eta birkargatu orria.", "No se ha podido cargar la librería del mapa (Leaflet). Comprueba la conexión y recarga la página."], ["Datuak: Euskalmet / Open Data Euskadi; Mutriku eta iragarpenak: Open-Meteo.com (CC BY 4.0).", "Datos: Euskalmet / Open Data Euskadi; Mutriku y previsiones: Open-Meteo.com (CC BY 4.0)."], ["🔥 2010-2025eko suteak (EGIF) ikusteko, aktibatu geruza geruzen menuan (goian eskuinean).", "🔥 Para ver los incendios de 2010-2025 (EGIF), activa la capa en el menú de capas (arriba a la derecha)."], [": arrisku-maila zuzen iragarri den aldiz. Azken urteko iragarpenak hartzen dira kontuan.", ": veces que se acertó el nivel de riesgo. Se tienen en cuenta las previsiones del último año."], ["Iturria: EGIF (MITECO). Koordenatuak ETRS89/WGS84 sisteman, ~100 m-ko zehaztasunarekin.", "Fuente: EGIF (MITECO). Coordenadas en ETRS89/WGS84, con precisión de ~100 m."], ["Iragarpena: Open-Meteo.com (CC BY 4.0), best_match eredua estazioen datuekin zuzendua.", "Previsión: Open-Meteo.com (CC BY 4.0), modelo best_match corregido con los datos de las estaciones."], ["GIPUZKOA: estazioen FWIen batez besteko haztatua, eragin-eremuen azaleraren arabera.", "GIPUZKOA: media ponderada de las estaciones según la superficie de sus zonas de influencia."], ["Eremu bakoitzak gertuen duen estazioaren FWIa hartzen du (Thiessen poligonoak).", "Cada zona toma el valor de su estación más cercana (polígonos de Thiessen)."], ["Ezin izan da historikoa kargatu (data/historico.json). Saiatu berriro geroago.", "No se ha podido cargar el histórico (data/historico.json). Inténtalo más tarde."], [" (IRAGARPENA: etiketen ertz etenak neurtutako datuetatik bereizten du). ", " (PREVISIÓN: el borde discontinuo de las etiquetas la distingue de los datos medidos). "], ["* Lerro honen aurreko egunak falta dira; balioa zehaztasun gutxikoa da.", "* Faltan los días anteriores a esta fila; el valor es poco preciso."], ["Egunero gordetzen den iragarpena geroago neurtutakoarekin alderatuta (", "Previsión guardada cada día comparada con lo medido después ("], ["Pertzentila: hilabete bereko egun historikoekin alderatuta (2010etik).", "Percentil: comparado con los días históricos del mismo mes (desde 2010)."], ["Estazioen balioen interpolazioa, alderantzizko distantziaren arabera.", "Interpolación de los valores de las estaciones según la distancia inversa."], ["Basugix, Gipuzkoako baso sute arrisku indizea (20 = egun ertaina)", "Basugix, índice de riesgo de incendio forestal de Gipuzkoa (20 = día medio)"], [": iragarritakoaren eta neurtutakoaren arteko aldea, batez beste.", ": diferencia media entre lo previsto y lo medido."], [": iragarpena gehiegizkoa (+) ala gutxiegizkoa (−) izan ohi den.", ": si la previsión suele pasarse (+) o quedarse corta (−)."], ["Jarraian, 24 orduko euria 1 mm-tik behera izan duten egunak", "Días seguidos con lluvia de 24 h inferior a 1 mm"], ["🖥️ Open-Meteo ereduaren estimazioa, tokiko estaziorik gabe", "🖥️ Estimación del modelo Open-Meteo, sin estación local"], ["Tresna orientagarria: ez ditu ordezkatzen abisu ofizialak.", "Herramienta orientativa: no sustituye a los avisos oficiales."], ["Oraindik ez dago mapan erakusteko kalkulatutako egunik.", "Todavía no hay días calculados para mostrar en el mapa."], ["EGIF erregistroa: estazio honen eragin-eremuko suteak", "Registro EGIF: incendios en la zona de influencia de esta estación"], ["Sastraka: pisu lehorra t/ha, LiDAR 2012 (geoEuskadi)", "Matorral: peso seco t/ha, LiDAR 2012 (geoEuskadi)"], ["Open-Meteo ereduaren estimazioa, ez estazio fisikoa", "Estimación del modelo Open-Meteo, no estación física"], ["Eguzki-eguerdiko datuak (13:00 neguan, 14:00 udan).", "Datos del mediodía solar (13:00 en invierno, 14:00 en verano)."], ["Sute-arrisku egiturazkoa, LiDAR 2012 (geoEuskadi)", "Riesgo estructural de incendio, LiDAR 2012 (geoEuskadi)"], ["Estazio honek oraindik ez du egunik kalkulatuta.", "Esta estación todavía no tiene días calculados."], ["Ezin izan da txostena prestatu. Saiatu berriro.", "No se ha podido preparar el informe. Inténtalo de nuevo."], ["💨 ikurrak hego haizearen abisua adierazten du.", "💨 indica aviso de viento sur."], ["🔥 Egun horretako suteak eragin-eremuan (EGIF)", "🔥 Incendios de ese día en su zona de influencia (EGIF)"], ["💨 Hego haizea: FWI honekin, sute-arriskua ~×", "💨 Viento sur: con este FWI, riesgo de incendio ~×"], ["balioak berotzen (fidagarritasun txikia)", "valores en calentamiento (poca fiabilidad)"], ["EGIF erregistroa: Gipuzkoa osoko suteak", "Registro EGIF: incendios de toda Gipuzkoa"], ["Iragarpena: Open-Meteo.com (CC BY 4.0).", "Previsión: Open-Meteo.com (CC BY 4.0)."], ["GIPUZKOA: asteko batez besteko Basugix", "GIPUZKOA: Basugix medio semanal"], ["Gipuzkoako baso sute arrisku indizeak", "Índices de riesgo de incendio forestal de Gipuzkoa"], ["Landaredia (B5m, zooma eginez soilik)", "Vegetación (B5m, solo con zoom)"], ["🔥 Aldiko suteak eragin-eremuan (EGIF)", "🔥 Incendios del periodo en su zona de influencia (EGIF)"], ["† berotzen: fidagarritasun gutxikoa", "† en calentamiento: poco fiable"], ["Ezin izan da iragarpena eguneratu; ", "No se ha podido actualizar la previsión; "], ["GIPUZKOA: asteko batez besteko FWIa", "GIPUZKOA: FWI medio semanal"], ["Hego haizea Basugixen sartuta dago", "El viento sur está incluido en Basugix"], ["Ez dago suterik erregistratuta.", "No hay incendios registrados."], ["Ezin izan dira datuak kargatu.", "No se han podido cargar los datos."], ["Udalerriak (izena eta eragina)", "Municipios (nombre e influencia)"], [": asteko batez besteko Basugix", ": Basugix medio semanal"], ["Aldi horretan ez dago daturik.", "No hay datos en ese periodo."], ["Egun horretan ez dago daturik.", "No hay datos ese día."], ["🔥 Egun horretako suteak (EGIF)", "🔥 Incendios de ese día (EGIF)"], ["Iragarpenaren fidagarritasuna", "Fiabilidad de la previsión"], ["Suteen arrisku meteorologikoa", "Riesgo meteorológico de incendios"], ["Aldiko Basugix batez bestekoa", "Basugix medio del periodo"], ["Estazioz estazioko laburpena", "Resumen por estación"], ["Egun horretan daturik gabe: ", "Sin datos ese día: "], ["Azken irakurketa kalkulatua", "Última lectura calculada"], ["† balioak oraindik berotzen", "† valores aún en calentamiento"], ["Basugix: baso sute arriskua", "Basugix: riesgo de incendio forestal"], [": asteko batez besteko FWIa", ": FWI medio semanal"], [" iragarpena erakusten da. ", " se muestra la previsión. "], ["FWI geruzaren opakutasuna", "Opacidad de la capa"], ["Suteak 2010-2025 (EGIF) 🔥", "Incendios 2010-2025 (EGIF) 🔥"], ["🔥 Sutea (EGIF, 2010-2025)", "🔥 Incendio (EGIF, 2010-2025)"], [": egun honetan daturik ez", ": sin datos este día"], ["Estazio nagusiaren FWIa (", "FWI de la estación principal ("], ["Aldiko FWI batez bestekoa", "FWI medio del periodo"], ["GIPUZKOA: eguneko Basugix", "GIPUZKOA: Basugix diario"], ["🌧️ Euria azken 24 h-etan", "🌧️ Lluvia en las últimas 24 h"], ["handiagoa (informatiboa)", "mayor (informativo)"], ["Estazioak (eguneko FWIa)", "Estaciones (valor del día)"], ["Koordenatuak (lat / lon)", "Coordenadas (lat / lon)"], ["eredua, estaziorik gabe", "modelo, sin estación"], ["Hiru eguneko iragarpena", "Previsión a tres días"], ["aurreko exekuzio bateko", "de una ejecución anterior"], ["Hilabeteko FWI ohikoa —", "FWI habitual del mes —"], ["Arrisku-mapa Gipuzkoan", "Mapa de riesgo en Gipuzkoa"], ["Erliebea (OpenTopoMap)", "Relieve (OpenTopoMap)"], ["🖥️ eredua, ez estazioa", "🖥️ modelo, no estación"], ["GIPUZKOA: eguneko FWIa", "GIPUZKOA: FWI diario"], ["🔥 Aldiko suteak (EGIF)", "🔥 Incendios del periodo (EGIF)"], ["Historikoa kargatzen…", "Cargando histórico…"], ["Hego haizearen abisua", "Aviso de viento sur"], ["Batez besteko errorea", "Error medio"], ["Hilabeteko FWI ohikoa", "FWI habitual del mes"], ["Txostena prestatzen…", "Preparando el informe…"], ["Bi datak behar dira.", "Hacen falta las dos fechas."], ["Mapa (OpenStreetMap)", "Mapa (OpenStreetMap)"], ["Ikusi historial osoa", "Ver el historial completo"], ["Gipuzkoako FWI mapa", "Mapa del FWI de Gipuzkoa"], ["iragarpena, tartea ", "previsión, rango "], ["Hezetasun erlatiboa", "Humedad relativa"], ["eredua (Open-Meteo)", "modelo (Open-Meteo)"], ["Hizkuntza / Idioma", "Idioma / Hizkuntza"], ["Gainazal jarraitua", "Superficie continua"], ["(gaurko kalkulua) ", "(cálculo de hoy) "], ["Hilabetez hilabete", "Mes a mes"], [" izan zuten egunak", ": días"], ["Datuak kargatzen…", "Cargando datos…"], ["· datu berri gabe", "· sin datos recientes"], ["Tartearen barruan", "Dentro del rango"], ["Aldiko txostena ·", "Informe del periodo ·"], [": eguneko Basugix", ": Basugix diario"], ["📄 Txostena (PDF)", "📄 Informe (PDF)"], ["Txostena (PDF): ", "Informe (PDF): "], ["· kontuan hartua", "· incluido"], ["Udal-mugak (B5m)", "Límites municipales (B5m)"], ["Mapa kargatzen…", "Cargando mapa…"], ["Eragin-eremua: ", "Zona de influencia: "], ["· ohiko tartea ", "· rango habitual "], ["Sutea 2010-2025", "Incendio 2010-2025"], ["Estazio guztiak", "Todas las estaciones"], ["Euria 24 h (mm)", "Lluvia 24 h (mm)"], ["Azken 14 egunak", "Últimos 14 días"], ["Basugix altuena", "Basugix más alto"], ["Arduragabekeria", "Negligencia"], ["Eguna aukeratu", "Elegir día"], ["Hurrengo eguna", "Día siguiente"], ["Txostena (PDF)", "Informe (PDF)"], ["Eragin-eremuak", "Zonas de influencia"], ["🔥 Sutea (EGIF)", "🔥 Incendio (EGIF)"], ["Koordenatuak: ", "Coordenadas: "], [": eguneko FWIa", ": FWI diario"], ["batez bestekoa", "media"], ["Egunak mailaka", "Días por nivel"], ["Aurreko eguna", "Día anterior"], ["Gipuzkoa osoa", "Toda Gipuzkoa"], ["Maila asmatua", "Nivel acertado"], ["Haizea (km/h)", "Viento (km/h)"], [" (kalkulatua)", " (calculado)"], [" (iragarpena)", " (previsión)"], ["azken datua: ", "último dato: "], ["Euria 24 h mm", "Lluvia 24 h mm"], ["Eragin-eremua", "Zona de influencia"], ["Eguneratuta:", "Actualizado:"], ["Iragarpena: ", "Previsión: "], ["· daturik ez", "· sin datos"], ["· kalkulatua", "· calculado"], ["· iragarpena", "· previsión"], ["· euria 24 h", "· lluvia 24 h"], [": arriskua ×", ": riesgo ×"], ["Arrisku-mapa", "Mapa de riesgo"], ["Gardentasuna", "Transparencia"], ["Sutea (EGIF)", "Incendio (EGIF)"], ["Xehetasuna: ", "Detalle: "], ["Euria (24 h)", "Lluvia (24 h)"], ["Zehaztu gabe", "Sin determinar"], ["Sutea (EGIF)", "Incendio (EGIF)"], ["Hego haizea", "Viento sur"], ["hego haizea", "viento sur"], ["arriskua ~×", "riesgo ~×"], ["Informazioa", "Información"], ["Iragarpena ", "Previsión "], [" (gutxiegi)", " (por defecto)"], ["Pertzentila", "Percentil"], ["× egun ert.", "× día medio"], ["Haizea km/h", "Viento km/h"], ["FWI altuena", "FWI más alto"], ["Tenperatura", "Temperatura"], ["Daturik ez", "Sin datos"], ["daturik ez", "sin datos"], [" (gehiegi)", " (por exceso)"], ["Xehetasuna", "Detalle"], ["iragarpena", "previsión"], ["IRAGARPENA", "PREVISIÓN"], ["kalkulatua", "calculado"], ["Muturrekoa", "Extremo"], ["Oso handia", "Muy alto"], ["oso handia", "muy alto"], ["muturrekoa", "extremo"], ["Sortu PDF", "Crear PDF"], ["🖥️ eredua", "🖥️ modelo"], ["Mapa mota", "Tipo de mapa"], ["Eragina: ", "Influencia: "], ["FWI puntu", "puntos FWI"], ["Hilabetea", "Mes"], ["Norabidea", "Dirección"], ["Udalerria", "Municipio"], ["Ezezaguna", "Desconocida"], ["Oso baxua", "Muy bajo"], ["oso baxua", "muy bajo"], ["Egoera: ", "Situación: "], ["Haizea: ", "Viento: "], ["Estazioa", "Estación"], ["Aurretik", "Antelación"], ["orekatua", "equilibrada"], ["Batez b.", "Media"], ["Euria mm", "Lluvia mm"], ["🔥 Suteak", "🔥 Incendios"], ["Oharrak:", "Observaciones:"], ["berotzen", "en calentamiento"], ["Istripua", "Accidente"], ["Naturala", "Natural"], ["Indizea", "Índice"], ["Mediana", "Mediana"], ["Maximoa", "Máximo"], ["Oharrak", "Observaciones"], ["datua: ", "dato: "], ["Azalera", "Superficie"], ["Sortua:", "Generado:"], ["Ertaina", "Moderado"], ["ertaina", "moderado"], ["Nondik", "Desde"], ["Kasuak", "Casos"], ["Egunak", "Días"], ["Pertz.", "Perc."], ["Haizea", "Viento"], ["Nahita", "Intencionado"], ["Handia", "Alto"], ["handia", "alto"], ["Eguna", "Día"], ["Joera", "Tendencia"], ["puntu", "puntos"], ["Maila", "Nivel"], ["Ordua", "Hora"], ["Kausa", "Causa"], ["Baxua", "Bajo"], ["baxua", "bajo"], ["Nora", "Hasta"], ["Utzi", "Cancelar"], ["Gaur", "Hoy"], ["Data", "Fecha"]];
+    const tr = t => {
+      if (!t || !/[a-zA-ZñÑ]/.test(t)) return t;
+      let o = t;
+      for (const [r, v] of RX) o = o.replace(r, v);
+      for (const [a, b] of EX) if (o.includes(a)) o = o.split(a).join(b);
+      return o;
+    };
+    const SALTAR = 'script,style,[data-lang],.idioma';
+    const ATTR = ['title', 'aria-label', 'placeholder'];
+    function traducirNodo(n){
+      if (n.nodeType === 3){
+        const p = n.parentElement;
+        if (!p || p.closest(SALTAR)) return;
+        const v = tr(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v;
+      } else if (n.nodeType === 1){
+        if (n.closest(SALTAR)) return;
+        ATTR.forEach(a => { if (n.hasAttribute(a)){ const v = tr(n.getAttribute(a)); if (v !== n.getAttribute(a)) n.setAttribute(a, v); } });
+        const w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {acceptNode: x => (x.nodeType === 1 && x.matches(SALTAR)) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT});
+        let x; while ((x = w.nextNode())){
+          if (x.nodeType === 3){ const v = tr(x.nodeValue); if (v !== x.nodeValue) x.nodeValue = v; }
+          else ATTR.forEach(a => { if (x.hasAttribute(a)){ const v = tr(x.getAttribute(a)); if (v !== x.getAttribute(a)) x.setAttribute(a, v); } });
+        }
+      }
+    }
+    const obs = new MutationObserver(muts => {
+      obs.disconnect();
+      for (const m of muts){
+        if (m.type === 'childList') m.addedNodes.forEach(traducirNodo);
+        else if (m.type === 'characterData') traducirNodo(m.target);
+        else if (m.type === 'attributes') traducirNodo(m.target);
+      }
+      obs.observe(document.body, CONF);
+    });
+    const CONF = {childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTR};
+    document.title = tr(document.title);
+    traducirNodo(document.body);
+    obs.observe(document.body, CONF);
+    document.addEventListener('DOMContentLoaded', () => { document.title = tr(document.title); traducirNodo(document.body); });
+    window.FWI_TR = tr;
+  })();
+</script>
+
 <main>
   <header>
+    <div class="idioma" role="group" aria-label="Hizkuntza / Idioma">
+      <button type="button" data-l="eu" title="Euskara">EU</button><button type="button" data-l="es" title="Castellano">ES</button>
+    </div>
     <h1>Gipuzkoako baso sute arrisku indizeak</h1>
     <nav class="pestanas" role="tablist" aria-label="Indizea">
       <button type="button" role="tab" id="tabFwi" data-modo="fwi" aria-selected="true">FWI</button>
       <button type="button" role="tab" id="tabIfg" data-modo="ifg" aria-selected="false">Basugix</button>
     </nav>
-    <p class="lede modo-ifg" hidden><b>Basugix</b>: Gipuzkoarako egokitutako baso sute arrisku indizea. FWIa, urtaroa eta hego haizea hartzen ditu kontuan, eta Gipuzkoako 2010-2025eko suteekin dago kalibratua. <b>20 = egun ertaina</b>; <b>10 puntu gehiago = sute-probabilitatea bikoitza</b> (30 = bi aldiz, 40 = lau aldiz, 50 = zortzi aldiz). <a href="#metIfg" class="ir-met">Nola kalkulatzen den eta mailak →</a></p>
-    <p class="lede modo-fwi"><b>FWI</b> (Fire Weather Index): nazioartean erabiltzen den suteen arrisku meteorologikoaren indizea, EFFISen mailekin. <a href="#metFwi" class="ir-met">Nola kalkulatzen den eta mailak →</a></p>
-    <p class="lede">Egunero kalkulatzen dira Euskalmeten estazioetako datuekin: Zegama, Bidania, Miramon, Berastegi, Arrasate, Zarautz (Inurritzako euri-datuekin), Ordizia, Zizurkil, Pasaia (itsasoko plataforma) eta Altzola (haizea Open-Meteo ereduarekin). Mutrikun, kostaldeko hutsunea betetzeko, estaziorik ez dagoenez, Open-Meteo ereduaren estimazioa erabiltzen da (🖥️ eredua markatuta).</p>
+    <p class="lede modo-ifg" data-lang="eu" hidden><b>Basugix</b>: Gipuzkoarako egokitutako baso sute arrisku indizea. FWIa, urtaroa eta hego haizea hartzen ditu kontuan, eta Gipuzkoako 2010-2025eko suteekin dago kalibratua. <b>20 = egun ertaina</b>; <b>10 puntu gehiago = sute-probabilitatea bikoitza</b> (30 = bi aldiz, 40 = lau aldiz, 50 = zortzi aldiz). <a href="#metIfg" class="ir-met">Nola kalkulatzen den eta mailak →</a></p>
+    <p class="lede modo-ifg" data-lang="es" hidden><b>Basugix</b>: índice de riesgo de incendio forestal adaptado a Gipuzkoa. Tiene en cuenta el FWI, la época del año y el viento sur, y está calibrado con los incendios de Gipuzkoa de 2010-2025. <b>20 = día medio</b>; <b>10 puntos más = el doble de probabilidad de incendio</b> (30 = el doble, 40 = cuatro veces, 50 = ocho veces). <a href="#metIfg" class="ir-met">Cómo se calcula y niveles →</a></p>
+    <p class="lede modo-fwi" data-lang="eu"><b>FWI</b> (Fire Weather Index): nazioartean erabiltzen den suteen arrisku meteorologikoaren indizea, EFFISen mailekin. <a href="#metFwi" class="ir-met">Nola kalkulatzen den eta mailak →</a></p>
+    <p class="lede modo-fwi" data-lang="es"><b>FWI</b> (Fire Weather Index): índice de riesgo meteorológico de incendios de uso internacional, con los niveles del EFFIS. <a href="#metFwi" class="ir-met">Cómo se calcula y niveles →</a></p>
+    <p class="lede" data-lang="eu">Egunero kalkulatzen dira Euskalmeten estazioetako datuekin: Zegama, Bidania, Miramon, Berastegi, Arrasate, Zarautz (Inurritzako euri-datuekin), Ordizia, Zizurkil, Pasaia (itsasoko plataforma) eta Altzola (haizea Open-Meteo ereduarekin). Mutrikun, kostaldeko hutsunea betetzeko, estaziorik ez dagoenez, Open-Meteo ereduaren estimazioa erabiltzen da (🖥️ eredua markatuta).</p>
+    <p class="lede" data-lang="es">Se calculan a diario con los datos de las estaciones de Euskalmet: Zegama, Bidania, Miramon, Berastegi, Arrasate, Zarautz (con la lluvia de Inurritza), Ordizia, Zizurkil, Pasaia (plataforma marina) y Altzola (viento del modelo Open-Meteo). En Mutriku, para cubrir el hueco de la costa, al no haber estación se usa la estimación del modelo Open-Meteo (marcada como 🖥️ modelo).</p>
     <p class="upd" id="upd">Datuak kargatzen…</p>
   </header>
 
@@ -267,7 +348,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     <div class="tabla" id="climtabla"></div>
   </details>
 
-  <section id="metodo" aria-label="Nola kalkulatzen da indizea">
+  <section id="metodo" data-lang="eu" aria-label="Nola kalkulatzen da indizea">
     <h2>Nola kalkulatzen da indizea</h2>
     <p class="nota met-intro">Webgune honek bi indize erakusten ditu: <b>FWIa</b>, nazioartean erabiltzen dena, eta <b>Basugix</b>, Gipuzkoarako egokitua (ikus beherago). <b>FWIa</b> (<i>Fire Weather Index</i>) Kanadako Baso Zerbitzuak garatutako sistema da, eta Europan EFFISek (Europako Suteen Informazio Sistema) erabiltzen du. Eguraldiak sute bat pizteko eta hedatzeko sortzen duen arriskua neurtzen du: zenbat eta handiagoa, orduan eta errazago piztu eta azkarrago hedatuko litzateke sute bat. Ez du kontuan hartzen su-iturririk dagoen ala ez, ez eta toki bakoitzeko landaredia zehatza ere. Tresna orientagarria da: <b>ez ditu ordezkatzen abisu ofizialak</b>.</p>
 
@@ -404,12 +485,152 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       <p><b>🔥 Suteak (EGIF).</b> 2010-2025eko Gipuzkoako baso suteen erregistro ofiziala (EGIF, MITECO) ere erakusten da: mapan, "Suteak 2010-2025 (EGIF)" geruza aktibatuta, sute guztiak ikusten dira beren kokalekuan (🔥). Iraganeko egun bat aukeratzean, txartelek estazio bakoitzaren eragin-eremuan egun horretan izandako sute-kopurua erakusten dute. Txostenetan, suteen kopurua eta kokalekua (udalerria, paraje, koordenatuak, azalera eta kausa) ageri dira, mapan eta taulan.</p>
     </details>
   </section>
+
+  <section id="metodo-es" data-lang="es" aria-label="Cómo se calcula el índice">
+    <h2>Cómo se calcula el índice</h2>
+    <p class="nota met-intro">Esta web muestra dos índices: el <b>FWI</b>, de uso internacional, y <b>Basugix</b>, adaptado a Gipuzkoa (ver más abajo). El <b>FWI</b> (<i>Fire Weather Index</i>) es un sistema desarrollado por el Servicio Forestal de Canadá y es el que utiliza en Europa el EFFIS (Sistema Europeo de Información sobre Incendios Forestales). Mide el riesgo que crea el tiempo para que un incendio se inicie y se propague: cuanto más alto, más fácilmente se iniciaría y más rápido se propagaría un incendio. No tiene en cuenta si hay o no una fuente de ignición, ni la vegetación concreta de cada lugar. Es una herramienta orientativa: <b>no sustituye a los avisos oficiales</b>.</p>
+
+    <details class="met">
+      <summary>Datos y hora: el mediodía solar</summary>
+      <p>Cada día se usan los datos del <b>mediodía solar</b>: las <b>12:00 UTC</b>, es decir, en hora oficial, las <b>13:00 en invierno y las 14:00 en verano</b>. De cada estación se toman la temperatura, la humedad relativa y la velocidad y dirección del viento a esa hora, y la <b>lluvia acumulada en las 24 horas</b> anteriores. Es el criterio estándar del sistema FWI y el mismo que usa el EFFIS.</p>
+      <p>Como Euskalmet necesita un tiempo para publicar los datos, se descargan <b>cada 10 minutos entre las 14:10 y las 15:00</b>, y <b>a las 15:00 se cierra el día</b> (en verano; en invierno, una hora antes). El día se cierra siempre con el dato de las 14:00: <b>nunca se usan lecturas posteriores</b>. La web muestra el dato del día en cuanto llega el dato medido de Euskalmet (normalmente entre las 14:10 y las 14:30); hasta entonces, el del día anterior. Si alguna estación aún no tiene su dato, aparece el valor calculado con lo medido hasta ese momento, marcado como "calculado", hasta que llega el dato medido. La página se actualiza sola: cada minuto en las horas en que llegan los datos y cada cinco minutos el resto del día.</p>
+    </details>
+
+    <details class="met">
+      <summary>Días sin lluvia</summary>
+      <p>En cada tarjeta, bajo el viento, aparecen los días que la estación lleva <b>seguidos sin lluvia</b> hasta el día que se está viendo (incluido). Un día cuenta como "de lluvia" si en las 24 horas hasta el mediodía solar cayó <b>1 mm o más</b>; por debajo, la lluvia apenas humedece el combustible. Si hay un hueco de datos en los días anteriores, aparece el signo "≥": como mínimo lleva esos días sin llover.</p>
+    </details>
+
+    <details class="met">
+      <summary>Cuando faltan datos</summary>
+      <ul>
+        <li><b>Lluvia.</b> Si de las 144 lecturas de las 24 horas (una cada 10 minutos) faltan 6 o menos, se usa el dato de la estación. Si faltan más, o falta el día entero, la lluvia se toma de la <b>estación más cercana</b> (si tiene los datos completos; si no, de la siguiente). Si fallan todas (fallo general), del modelo Open-Meteo.</li>
+        <li><b>Temperatura, humedad y viento.</b> Si falta la lectura exacta de las 14:00, se toma de la propia estación la lectura más desfavorable para el riesgo <b>entre las 13:10 y las 14:50</b>: la <b>humedad más baja</b> y la <b>temperatura y el viento más altos</b>. Si en ese intervalo no hay nada, el valor del modelo Open-Meteo en las coordenadas de la estación.</li>
+        <li><b>Si la estación no tiene ningún dato</b> un día (avería, o porque aún no estaba en funcionamiento), ese día no se inventa: queda como hueco.</li>
+        <li><b>Datos erróneos.</b> Las lecturas físicamente imposibles (códigos de error de los sensores, humedad del 0 %, lluvias de 3.000 mm...) se descartan antes de calcular.</li>
+        <li>Todos los datos rellenados quedan <b>marcados</b> en el histórico, indicando qué variable se rellenó y de dónde.</li>
+      </ul>
+    </details>
+
+    <details class="met">
+      <summary>Componentes del sistema FWI y cálculo en cadena</summary>
+      <ul>
+        <li><b>FFMC</b>: humedad del combustible fino superficial (hojarasca, hierba seca). Cambia en pocos días; indica la facilidad de ignición.</li>
+        <li><b>DMC</b>: humedad de la capa orgánica intermedia (memoria de algunas semanas).</li>
+        <li><b>DC</b>: sequedad de las capas profundas (memoria de meses; refleja las sequías largas).</li>
+        <li><b>ISI</b>: velocidad inicial de propagación (FFMC + viento).</li>
+        <li><b>BUI</b>: combustible total disponible (DMC + DC).</li>
+        <li><b>FWI</b>: combinación de ISI y BUI: intensidad potencial del fuego.</li>
+      </ul>
+      <p>FFMC, DMC y DC se calculan día a día <b>a partir del valor del día anterior</b> (en cadena). Por eso los datos de un día influyen también en los siguientes. Si falta un día, se continúa desde el último valor disponible (marcado con * en el detalle). Si el hueco es <b>de más de dos semanas</b>, los códigos se reinician y los <b>45 días</b> siguientes se marcan "en calentamiento" (†): son valores orientativos, poco fiables, y no se incluyen en la climatología ni en la media de GIPUZKOA. Los factores de duración del día están calibrados para latitudes en torno a 46° N, similares a las de Euskadi.</p>
+    </details>
+
+    <details class="met" id="metFwi-es">
+      <summary>Niveles de riesgo del FWI y percentil</summary>
+      <p>Los niveles siguen el criterio del EFFIS:</p>
+      <div class="classes">
+        <span class="chip" style="background:#2f8f5b;color:#fff">Muy bajo</span><span>menos de 5,2</span>
+        <span class="chip" style="background:#8fbf3f;color:#14231c">Bajo</span><span>de 5,2 a 11,2</span>
+        <span class="chip" style="background:#f0c53b;color:#14231c">Moderado</span><span>de 11,2 a 21,3</span>
+        <span class="chip" style="background:#ee8a2e;color:#14231c">Alto</span><span>de 21,3 a 38</span>
+        <span class="chip" style="background:#d9382b;color:#fff">Muy alto</span><span>de 38 a 50</span>
+        <span class="chip" style="background:#7a1f4d;color:#fff">Extremo</span><span>más de 50</span>
+      </div>
+      <p>El <b>percentil</b> compara el FWI del día con todos los días históricos <b>del mismo mes</b> en esa estación (desde 2010). Por ejemplo, "percentil 90" significa que el 90 % de los días de ese mes tuvieron un FWI menor. En un clima húmedo aporta más información que las categorías generales: un mismo FWI puede ser habitual en agosto y excepcional en marzo.</p>
+    </details>
+
+    <details class="met" id="metIfg-es">
+      <summary>Basugix: índice de riesgo de incendio forestal de Gipuzkoa</summary>
+      <p>Los niveles del EFFIS están pensados para el clima mediterráneo. En Gipuzkoa, en cambio, <b>dos tercios</b> de los incendios de 2010-2025 ocurrieron en días con FWI "muy bajo" o "bajo", y los niveles altos casi nunca se alcanzan. El motivo: nuestros incendios se producen sobre todo <b>a finales de invierno y en primavera</b> (marzo es el peor mes), con hierba, helecho y argoma secos y viento sur, y el FWI no lo recoge bien.</p>
+      <p><b>Basugix</b> es un índice adaptado a Gipuzkoa. Mide la probabilidad de que se produzca un incendio <b>comparada con un día medio</b>, y se expresa en puntos:</p>
+      <ul>
+        <li><b>20 puntos = día medio</b> (la probabilidad de incendio de un día normal en Gipuzkoa).</li>
+        <li><b>10 puntos más = el doble de probabilidad</b>: 30 = el doble, 40 = cuatro veces, 50 = ocho veces más probable. Y 10 puntos menos, la mitad: 10 = la mitad de un día medio.</li>
+      </ul>
+      <p>En las tarjetas, junto a los puntos, aparece también el multiplicador (por ejemplo, "×2,4 respecto a un día medio"). Tiene en cuenta tres cosas, calibradas con el registro EGIF de Gipuzkoa (497 incendios, 63.837 días-estación, 2010-2025):</p>
+      <ul>
+        <li><b>El FWI</b>: dentro de una misma época del año, ordena bien los días según el riesgo.</li>
+        <li><b>La época del año</b>: con el mismo FWI, <b>de diciembre a abril hay 3,2 veces más incendios</b> (rango 2,6–3,9). En parte refleja también la actividad humana (quemas), no solo el tiempo.</li>
+        <li><b>El viento sur</b> (SE–S–SO, mínimo 3 km/h): con el mismo FWI y la misma época, <b>1,6 veces</b> más (1,3–2,0).</li>
+      </ul>
+      <p>Niveles: <b>Muy bajo</b> menos de 10; <b>Bajo</b> 10–20; <b>Moderado</b> 20–30; <b>Alto</b> 30–40; <b>Muy alto</b> 40–50; <b>Extremo</b> 50 o más. Los incendios reales de cada nivel coinciden: ×0,2, ×0,7, ×1,7, ×3,1, ×5,3 y ×8,8 más que en un día medio, respectivamente. Los tres niveles más altos reúnen el 55 % de los incendios en el 13 % de los días. Se calibró con 2010-2019 y se comprobó con 2020-2025.</p>
+      <p>Por eso, un mismo FWI indica un riesgo distinto según la época. Cada nivel de Basugix empieza a partir de este FWI:</p>
+      <div class="tabla-met"><table>
+        <thead><tr><th>Nivel (mínimo)</th><th>mayo–noviembre</th><th>mayo–noviembre + viento sur</th><th>diciembre–abril</th><th>diciembre–abril + viento sur</th></tr></thead>
+        <tbody>
+          <tr><td>Moderado (20)</td><td>8,1</td><td>4,9</td><td>2,3</td><td>1,1</td></tr>
+          <tr><td>Alto (30)</td><td>15,9</td><td>10,0</td><td>5,0</td><td>2,9</td></tr>
+          <tr><td>Muy alto (40)</td><td>30,4</td><td>19,5</td><td>10,2</td><td>6,3</td></tr>
+          <tr><td>Extremo (50)</td><td>57,2</td><td>37,0</td><td>19,8</td><td>12,5</td></tr>
+        </tbody>
+      </table></div>
+      <p>Basugix se consulta en la pestaña <b>"Basugix"</b>, con la misma presentación que el FWI (tarjetas, mapa, previsión e informes). En la tarjeta de GIPUZKOA se calcula a partir de la media ponderada de las probabilidades de incendio de las estaciones. Es una propuesta provisional: se revisará con más datos y nuevos incendios.</p>
+    </details>
+
+    <details class="met">
+      <summary>Estaciones y sus particularidades</summary>
+      <div class="tabla-met"><table>
+        <thead><tr><th>Estación</th><th>Código</th><th>Altitud</th><th>Particularidades</th><th>Si falta la lluvia</th></tr></thead>
+        <tbody>
+          <tr><td>Altzola</td><td>C078</td><td>30 m</td><td>No tiene anemómetro: el viento (velocidad y dirección) es el del modelo Open-Meteo en las coordenadas de la estación. La temperatura, la humedad y la lluvia son mediciones reales.</td><td>Arrasate, Bidania</td></tr>
+          <tr><td>Arrasate</td><td>C023</td><td>318 m</td><td>Alto Deba.</td><td>Zegama, Altzola</td></tr>
+          <tr><td>Berastegi</td><td>C026</td><td>379 m</td><td>Sin datos publicados de junio de 2021 a junio de 2022.</td><td>Zizurkil, Bidania</td></tr>
+          <tr><td>Bidania</td><td>C058</td><td>592 m</td><td>La estación más alta.</td><td>Zizurkil, Ordizia</td></tr>
+          <tr><td>Miramon</td><td>C017</td><td>113 m</td><td>Donostia.</td><td>Pasaia, Zizurkil</td></tr>
+          <tr><td>Mutriku</td><td>—</td><td>20 m</td><td>No hay estación física: es una estimación del modelo Open-Meteo para cubrir el hueco de la costa (🖥️ modelo). No hay mediciones locales con las que corregirla o comprobarla.</td><td>—</td></tr>
+          <tr><td>Ordizia</td><td>C043</td><td>153 m</td><td>Goierri. Sin datos publicados de febrero a octubre de 2025.</td><td>Bidania, Zegama</td></tr>
+          <tr><td>Pasaia</td><td>B096</td><td>0 m</td><td>Plataforma marina en la bocana. Faltan a menudo la humedad y la lluvia, y muchas veces están rellenadas (la lluvia, casi siempre desde Miramon).</td><td>Miramon</td></tr>
+          <tr><td>Zarautz</td><td>C064</td><td>10 m</td><td>Combina dos estaciones reales: temperatura, humedad y viento de Zarautz, y lluvia de Inurritza (C086), en el mismo municipio, porque Zarautz no tiene pluviómetro. Sin datos publicados de diciembre de 2021 a julio de 2024.</td><td>Si falla Inurritza: Zizurkil, Bidania</td></tr>
+          <tr><td>Zegama</td><td>C028</td><td>520 m</td><td>Goierri, al pie del Aizkorri.</td><td>Ordizia, Arrasate</td></tr>
+          <tr><td>Zizurkil</td><td>C029</td><td>115 m</td><td>Valle del Oria, Tolosaldea.</td><td>Bidania, Berastegi</td></tr>
+        </tbody>
+      </table></div>
+      <p>El histórico de cada estación empieza cuando entró en funcionamiento (la mayoría, en 2010). Está calculado con las lecturas cada 10 minutos de Open Data Euskadi y se actualiza a diario con la API de Euskalmet.</p>
+    </details>
+
+    <details class="met">
+      <summary>Zonas de influencia y mapa</summary>
+      <p>Cada punto de Gipuzkoa se asigna a su <b>estación más cercana</b> (polígonos de Thiessen): son las <b>zonas de influencia</b> de cada estación. El mapa muestra el riesgo de dos formas:</p>
+      <ul>
+        <li><b>Superficie continua</b>: interpola los valores de las estaciones, dando más peso en cada punto a las estaciones más cercanas (distancia inversa). Da transiciones suaves.</li>
+        <li><b>Zonas de influencia</b>: cada zona toma entero el valor de su estación.</li>
+      </ul>
+      <p>Con pocas estaciones y un relieve tan variado, el mapa es una <b>orientación general</b>, no un valor medido en cada monte: no recoge las diferencias locales de orientación, altitud o combustible. Las capas de vegetación y de riesgo estructural ayudan a interpretarlo. El mapa, las tarjetas y sus barras muestran siempre el mismo día y los mismos valores.</p>
+    </details>
+
+    <details class="met">
+      <summary>GIPUZKOA: la media del territorio</summary>
+      <p>No es una estación, sino un resumen: la <b>media ponderada de los FWI</b> de las estaciones según la <b>superficie</b> de la zona de influencia de cada una. Solo se promedian los índices: promediar la temperatura, la humedad, la lluvia o el viento no tiene sentido, porque mezcla la costa y el interior. Como el FWI no es lineal, es más correcto promediar el riesgo de cada estación que calcularlo con un tiempo "medio".</p>
+      <p>Las estaciones sin datos ese día, o "en calentamiento", quedan fuera, y la tarjeta indica con qué porcentaje del territorio se ha calculado; si baja del 30 %, no se muestra. La previsión a tres días también es la media ponderada de las previsiones de las estaciones.</p>
+    </details>
+
+    <details class="met">
+      <summary>Aviso de viento sur (💨)</summary>
+      <p>El FWI tiene en cuenta la <b>velocidad</b> del viento, pero no su <b>dirección</b>. En Gipuzkoa el viento sur (de tipo foehn) es seco y cálido: seca la vegetación muy rápido y está detrás de muchos incendios, sobre todo en invierno y primavera.</p>
+      <p>Por eso se añade un aviso cuando el viento viene <b>del sureste, sur o suroeste</b> (120°–240°) a <b>3 km/h o más</b>. Está calibrado con el registro de incendios <b>EGIF</b> de Gipuzkoa 2010-2025 (497 incendios y 63.837 días-estación). De todos los umbrales de velocidad probados, 3 km/h fue el que mejor se ajustaba a los datos: lo importante es la dirección, y ese umbral tan bajo solo descarta los días de calma.</p>
+      <p>Con el mismo FWI, los días con viento sur hubo <b>2,7 veces más incendios</b>. Pero el viento sur es mucho más frecuente en invierno, y el invierno ya es de por sí más peligroso; descontando el efecto de la época, el del viento sur es <b>×1,6</b> (rango 1,3–2,0). Ese es el multiplicador que aparece en las tarjetas y el que incluye Basugix.</p>
+      <p>En la pestaña FWI, el aviso <b>no modifica el FWI</b>: es información adicional, y el multiplicador es aproximado. En la pestaña Basugix, el viento sur ya está incluido en el propio índice.</p>
+    </details>
+
+    <details class="met">
+      <summary>Previsión a tres días</summary>
+      <p>Se calcula igual que el FWI real, pero con la previsión meteorológica de <b>Open-Meteo</b> para el mediodía solar, corregida con el comportamiento histórico de cada estación y partiendo de los códigos del último día medido. El rango bajo cada valor indica dónde cayó el valor real en alrededor del 80 % de los casos de 2025 y 2026. En las pruebas, el error fue de unos 3 puntos de FWI a un día y de unos 4 a tres días; en los días más extremos suele quedarse corta. La previsión de cada día se guarda, para compararla después con lo medido y comprobar su fiabilidad.</p>
+    </details>
+
+    <details class="met">
+      <summary>Días pasados e informes</summary>
+      <p>Con el selector <b>Día</b> de arriba se puede ver cualquier día desde 2010: las tarjetas, GIPUZKOA y el mapa muestran la situación de ese día. El botón <b>📄 Informe (PDF)</b> genera el informe de un día o de un periodo entre dos fechas, de la tarjeta seleccionada (o de todo el territorio si está seleccionada GIPUZKOA), con mapa, gráficos y tablas.</p>
+      <p><b>🔥 Incendios (EGIF).</b> También se muestra el registro oficial de incendios forestales de Gipuzkoa 2010-2025 (EGIF, MITECO): en el mapa, activando la capa "Incendios 2010-2025 (EGIF)", se ven todos los incendios en su ubicación (🔥). Al elegir un día pasado, las tarjetas muestran el número de incendios de ese día en la zona de influencia de cada estación. En los informes aparecen el número de incendios y su ubicación (municipio, paraje, coordenadas, superficie y causa), en el mapa y en una tabla.</p>
+    </details>
+  </section>
+
 </main>
 <div id="informe" hidden></div>
 <dialog id="dlgInf" aria-labelledby="dlgInfTit">
   <form method="dialog">
     <h3 id="dlgInfTit">Txostena (PDF)</h3>
-    <p class="nota">Aukeratu egun bat edo aldi bat. Data berak aukeratuz gero, egun horretako txostena ateratzen da; bestela, aldiko laburpena. Txostena hautatutako txartelarena da (GIPUZKOA hautatuta badago, lurralde osoarena).</p>
+    <p class="nota" data-lang="eu">Aukeratu egun bat edo aldi bat. Data berak aukeratuz gero, egun horretako txostena ateratzen da; bestela, aldiko laburpena. Txostena hautatutako txartelarena da (GIPUZKOA hautatuta badago, lurralde osoarena).</p>
+    <p class="nota" data-lang="es">Elige un día o un periodo. Con la misma fecha en los dos campos se genera el informe de ese día; si no, el resumen del periodo. El informe es de la tarjeta seleccionada (si está seleccionada GIPUZKOA, de todo el territorio).</p>
     <div class="dlg-fechas">
       <label>Nondik <input type="date" id="infDesde" min="2010-01-01" required></label>
       <label>Nora <input type="date" id="infHasta" min="2010-01-01" required></label>
@@ -433,7 +654,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     'Muy alto': {c:'#d9382b', fg:'#ffffff'},
     'Extremo':  {c:'#7a1f4d', fg:'#ffffff'}
   };
-  const CLASE_EU = {'Muy bajo':'Oso baxua','Bajo':'Baxua','Moderado':'Ertaina','Alto':'Handia','Muy alto':'Oso handia','Extremo':'Muturrekoa'};
+  const CLASE_EU = window.LANG === 'es' ? {'Muy bajo':'Muy bajo','Bajo':'Bajo','Moderado':'Moderado','Alto':'Alto','Muy alto':'Muy alto','Extremo':'Extremo'}
+                                         : {'Muy bajo':'Oso baxua','Bajo':'Baxua','Moderado':'Ertaina','Alto':'Handia','Muy alto':'Oso handia','Extremo':'Muturrekoa'};
   const colorDe = n => COLORES[n] || {c:'#888', fg:'#fff'};
   const claseEu = n => CLASE_EU[n] || n;
   const fmt = (x,dec=1) => x == null ? '—' : Number(x).toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec});
@@ -444,8 +666,13 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const HIL_LAB = ['urt.','ots.','mar.','api.','mai.','eka.','uzt.','abu.','ira.','urr.','aza.','abe.'];
   const HIL_GEN = ['urtarrilaren','otsailaren','martxoaren','apirilaren','maiatzaren','ekainaren','uztailaren','abuztuaren','irailaren','urriaren','azaroaren','abenduaren'];
   const EGUN_OSO = ['igandea','astelehena','asteartea','asteazkena','osteguna','ostirala','larunbata'];
-  const fmtFecha = s => { const d = fecha(s); return EGUN_LAB[d.getDay()]+', '+HIL_LAB[d.getMonth()]+' '+d.getDate(); };
-  const fmtFechaLuzea = d => EGUN_OSO[d.getDay()]+', '+d.getFullYear()+'ko '+HIL_GEN[d.getMonth()]+' '+d.getDate()+'a';
+  const ES = window.LANG === 'es';
+  const DIA_ES = ['dom.','lun.','mar.','mié.','jue.','vie.','sáb.'], MES_ES_C = ['ene.','feb.','mar.','abr.','may.','jun.','jul.','ago.','sep.','oct.','nov.','dic.'];
+  const DIA_ES_L = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  const MES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fmtFecha = s => { const d = fecha(s); return ES ? DIA_ES[d.getDay()]+' '+d.getDate()+' '+MES_ES_C[d.getMonth()] : EGUN_LAB[d.getDay()]+', '+HIL_LAB[d.getMonth()]+' '+d.getDate(); };
+  const fmtFechaLuzea = d => ES ? DIA_ES_L[d.getDay()]+', '+d.getDate()+' de '+MES_ES[d.getMonth()]+' de '+d.getFullYear()
+                                : EGUN_OSO[d.getDay()]+', '+d.getFullYear()+'ko '+HIL_GEN[d.getMonth()]+' '+d.getDate()+'a';
   const fmtOrdua = d => String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
   const DIAS_POR_DEFECTO = 30;
   const SECTORES = ['N','NE','E','SE','S','SO','O','NO'];
@@ -619,7 +846,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     document.querySelectorAll('.pestanas button').forEach(b => b.addEventListener('click', () => ponerModo(b.dataset.modo)));
     document.querySelectorAll('a.ir-met').forEach(a => a.addEventListener('click', ev => {
       ev.preventDefault();
-      const d = document.querySelector(a.getAttribute('href'));
+      const d = document.querySelector(a.getAttribute('href') + (window.LANG === 'es' ? '-es' : '')) || document.querySelector(a.getAttribute('href'));
       if (d){ d.open = true; d.scrollIntoView({behavior: 'smooth', block: 'start'}); }
     }));
     window.addEventListener('hashchange', () => ponerModo(esHashBgx() ? 'ifg' : 'fwi'));
@@ -802,7 +1029,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const clV = v => v == null ? null : (MODO === 'ifg' ? claseBgx(v) : claseDeFwi(v));
   const TIT = () => MODO === 'ifg' ? 'Basugix: baso sute arriskua' : 'Suteen arrisku meteorologikoa';
   const SUB = () => MODO === 'ifg' ? 'Basugix, Gipuzkoako baso sute arrisku indizea (20 = egun ertaina)' : 'FWI (Fire Weather Index)';
-  const fmtLargo = s => { const d = fecha(s); return d.getFullYear()+'ko '+HIL_GEN[d.getMonth()]+' '+d.getDate()+'a'; };
+  const fmtLargo = s => { const d = fecha(s); return ES ? d.getDate()+' de '+MES_ES[d.getMonth()]+' de '+d.getFullYear() : d.getFullYear()+'ko '+HIL_GEN[d.getMonth()]+' '+d.getDate()+'a'; };
   function anillos(geom){
     if (!geom) return [];
     if (geom.type === 'Polygon') return geom.coordinates;
@@ -1073,7 +1300,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       if (claves.length > 1 && claves.length <= 24){
         porMes = '<h2>Hilabetez hilabete</h2><table><thead><tr><th>Hilabetea</th><th>Egunak</th><th>Batez b.</th><th>Maila</th><th>Maximoa</th><th>≥ Handia</th></tr></thead><tbody>'+
           claves.map(k => { const v = meses[k], m = v.reduce((a,b) => a+valM(b), 0)/v.length, mx = v.reduce((a,b) => valM(b) > valM(a) ? b : a), al = v.filter(d => ['Alto','Muy alto','Extremo'].includes(claseM(d))).length;
-            return `<tr><td class="izena">${k.slice(0,4)} ${HIL_GEN[+k.slice(5)-1].replace(/aren$|ren$|en$/,'a')}</td><td>${v.length}</td><td><b>${fmtM(m)}</b></td><td>${pill(clV(m))}</td><td>${fmtM(valM(mx))} <span style="color:#555">(${fmtFecha(mx.fecha)})</span></td><td>${al}</td></tr>`; }).join('')+'</tbody></table>';
+            return `<tr><td class="izena">${ES ? MES_ES[+k.slice(5)-1]+' '+k.slice(0,4) : k.slice(0,4)+' '+HIL_GEN[+k.slice(5)-1].replace(/aren$|ren$|en$/,'a')}</td><td>${v.length}</td><td><b>${fmtM(m)}</b></td><td>${pill(clV(m))}</td><td>${fmtM(valM(mx))} <span style="color:#555">(${fmtFecha(mx.fecha)})</span></td><td>${al}</td></tr>`; }).join('')+'</tbody></table>';
       }
       const mejores = x.serie.slice().sort((a,b) => valM(b) - valM(a)).slice(0, 5);
       top = '<h2>'+(MODO === 'ifg' ? 'Basugix altuena' : 'FWI altuena')+' izan zuten egunak</h2><table><thead><tr><th>Eguna</th><th>'+(MODO === 'ifg' ? 'Basugix' : 'FWI')+'</th><th>Maila</th><th>'+(MODO === 'ifg' ? '× egun ert.' : 'Pertz.')+'</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria mm</th></tr></thead><tbody>'+
@@ -1205,7 +1432,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     const c = (DATA.climatologia || {})[est.nombre];
     const box = $('#clim');
     if (!c || MODO === 'ifg'){ box.hidden = true; return; }   // climatología del FWI: solo en su pestaña
-    const meses = ['urtarrila','otsaila','martxoa','apirila','maiatza','ekaina','uztaila','abuztua','iraila','urria','azaroa','abendua'];
+    const meses = ES ? MES_ES : ['urtarrila','otsaila','martxoa','apirila','maiatza','ekaina','uztaila','abuztua','iraila','urria','azaroa','abendua'];
     const u = ultimo(est);
     const actual = u && esISO(u.fecha) ? +u.fecha.slice(5,7) : 0;
     let h = '<table><thead><tr><th>Hilabetea</th><th>Mediana</th><th>P75</th><th>P90</th><th>P98</th><th>Egunak</th></tr></thead><tbody>';
@@ -1332,7 +1559,8 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     'Moderado': {c:'#f0c53b', fg:'#14231c'}, 'Alto': {c:'#ee8a2e', fg:'#14231c'},
     'Muy alto': {c:'#d9382b', fg:'#ffffff'}, 'Extremo': {c:'#7a1f4d', fg:'#ffffff'}
   };
-  const CLASE_EU = {'Muy bajo':'oso baxua','Bajo':'baxua','Moderado':'ertaina','Alto':'handia','Muy alto':'oso handia','Extremo':'muturrekoa'};
+  const CLASE_EU = window.LANG === 'es' ? {'Muy bajo':'muy bajo','Bajo':'bajo','Moderado':'moderado','Alto':'alto','Muy alto':'muy alto','Extremo':'extremo'}
+                                         : {'Muy bajo':'oso baxua','Bajo':'baxua','Moderado':'ertaina','Alto':'handia','Muy alto':'oso handia','Extremo':'muturrekoa'};
   const colorDe = n => COLORES[n] || {c:'#888888', fg:'#ffffff'};
   const claseEuMin = n => CLASE_EU[n] || (n||'').toLowerCase();
   // Gainazal jarraituaren kolore-eskala (klase bakoitzaren erdigunea)
@@ -1358,7 +1586,9 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const fmt = (x,dec=1) => Number(x).toLocaleString('es-ES',{minimumFractionDigits:dec,maximumFractionDigits:dec});
   const EGUN_OSO = ['igandea','astelehena','asteartea','asteazkena','osteguna','ostirala','larunbata'];
   const HIL_GEN = ['urtarrilaren','otsailaren','martxoaren','apirilaren','maiatzaren','ekainaren','uztailaren','abuztuaren','irailaren','urriaren','azaroaren','abenduaren'];
-  const fmtFecha = s => { const [y,m,d] = s.split('-').map(Number); const dt = new Date(y,m-1,d); return EGUN_OSO[dt.getDay()]+', '+y+'ko '+HIL_GEN[m-1]+' '+d+'a'; };
+  const fmtFecha = s => { const [y,m,d] = s.split('-').map(Number); const dt = new Date(y,m-1,d);
+    return window.LANG === 'es' ? ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][dt.getDay()]+', '+d+' de '+['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][m-1]+' de '+y
+                                : EGUN_OSO[dt.getDay()]+', '+y+'ko '+HIL_GEN[m-1]+' '+d+'a'; };
   const sumaDias = (s,n) => { const [y,m,d] = s.split('-').map(Number); const t = new Date(y,m-1,d+n); return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'); };
   const merc = lat => Math.log(Math.tan(Math.PI/4 + lat*Math.PI/360));
   const invMerc = y => (2*Math.atan(Math.exp(y)) - Math.PI/2)*180/Math.PI;
