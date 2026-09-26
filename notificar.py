@@ -12,7 +12,8 @@ enviado, para no repetir: el correo, una vez al día; los avisos, solo cuando em
 situación (no cada día que se mantiene).
 
 Configuración (secretos de GitHub, como variables de entorno); si faltan, ese canal se omite:
-  SMTP_HOST, SMTP_PORT (465), SMTP_USER, SMTP_PASS, EMAIL_TO (varios, separados por comas), EMAIL_FROM
+  SMTP_USER, SMTP_PASS (contraseña de aplicación), EMAIL_TO (varios, separados por comas);
+  opcionales: SMTP_HOST (por defecto smtp.gmail.com), SMTP_PORT (465), EMAIL_FROM
   TELEGRAM_TOKEN, TELEGRAM_CHAT (grupo o canal de avisos), TELEGRAM_CHAT_TEC (avisos técnicos; si
   falta, se usa TELEGRAM_CHAT)
 
@@ -145,19 +146,22 @@ def enviar_telegram(texto, chat=None, prueba=False):
 
 
 def enviar_correo(asunto, cuerpo_html, prueba=False):
-    host, usu, pw, dest = (os.environ.get(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASS", "EMAIL_TO"))
+    # Gmail por defecto: basta con SMTP_USER, SMTP_PASS (contraseña de aplicación) y EMAIL_TO
+    host = os.environ.get("SMTP_HOST") or "smtp.gmail.com"
+    usu, pw, dest = (os.environ.get(k) for k in ("SMTP_USER", "SMTP_PASS", "EMAIL_TO"))
+    pw = (pw or "").replace(" ", "")
     if prueba or not (host and usu and pw and dest):
         Path("prueba_correo.html").write_text(cuerpo_html, encoding="utf-8")
         print(("[prueba] " if prueba else "[correo sin configurar] ") + f"asunto: {asunto} -> prueba_correo.html")
         return
     m = MIMEMultipart("alternative")
-    m["Subject"], m["From"] = asunto, os.environ.get("EMAIL_FROM", usu)
+    m["Subject"], m["From"] = asunto, os.environ.get("EMAIL_FROM") or f"Basugix <{usu}>"
     lista = [x.strip() for x in dest.split(",") if x.strip()]
     m["To"] = m["From"]            # destinatarios en copia oculta, para no mostrar las direcciones
     m.attach(MIMEText(cuerpo_html, "html", "utf-8"))
-    with smtplib.SMTP_SSL(host, int(os.environ.get("SMTP_PORT", "465")), context=ssl.create_default_context()) as s:
+    with smtplib.SMTP_SSL(host, int(os.environ.get("SMTP_PORT") or 465), context=ssl.create_default_context()) as s:
         s.login(usu, pw)
-        s.sendmail(m["From"], lista, m.as_string())
+        s.sendmail(usu, lista, m.as_string())
 
 
 # ---------------------------------------------------------------- correo: informe del día y previsión
