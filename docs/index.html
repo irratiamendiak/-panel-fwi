@@ -49,7 +49,7 @@ section{margin-bottom:22px}
 .st[aria-pressed="true"]{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
 .st-name{font-family:var(--f-head);font-weight:700;font-size:16px}
 .st{position:relative}
-.sute-ico{position:absolute;transform:translate(-50%,-60%);font-size:20px;line-height:1;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 1px 2px rgba(0,0,0,.6));pointer-events:auto;cursor:pointer}
+.sute-ico{position:absolute;transform:translate(-50%,-60%);font-size:17px;line-height:1;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 1px 2px rgba(0,0,0,.6));pointer-events:auto;cursor:pointer}
 .pestanas{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap}
 .pestanas button{font:inherit;font-weight:700;padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
 .pestanas button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -92,6 +92,10 @@ a.ir-met{color:var(--accent);font-weight:600;white-space:nowrap}
 .inf .leg{display:flex;flex-wrap:wrap;gap:4px 10px;margin:8px 0 4px;font-size:8.5pt}
 .inf .leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:-1px}
 .inf .pie{font-size:8pt;color:#444;margin-top:6px}
+.inf table.t-sute{font-size:8pt}
+.inf table.t-sute td{white-space:normal}
+.inf table.t-sute th{text-align:left}
+.inf h2{break-after:avoid;page-break-after:avoid}
 .verif{margin-top:12px}
 .verif h3{margin:0 0 4px;font-size:17px}
 .verif table{border-collapse:collapse;width:100%;font-size:14px}
@@ -392,7 +396,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     <details class="met">
       <summary>Iraganeko egunak eta txostenak</summary>
       <p>Goiko <b>Eguna</b> hautatzailearekin 2010etik aurrerako edozein egun ikus daiteke: txartelek, GIPUZKOAk eta mapak egun horretako egoera erakusten dute. <b>📄 Txostena (PDF)</b> botoiak egun bateko edo bi dataren arteko aldi bateko txostena sortzen du, hautatutako txartelarena (GIPUZKOA hautatuta badago, lurralde osoarena), mapa, grafikoak eta taulak barne.</p>
-      <p><b>🔥 Suteak (EGIF).</b> 2010-2025eko Gipuzkoako baso suteen erregistro ofiziala (EGIF, MITECO) ere erakusten da: iraganeko egun bat aukeratzean, egun horretako suteak mapan agertzen dira (🔥), eta txarteletan eremu bakoitzeko sute-kopurua. Txostenetan, suteak mapan eta zerrendan ageri dira, eta aldi-txostenetan sute-egunetako indizearen batez bestekoa aldi osokoarekin alderatzen da: indizeak ondo funtzionatzen badu, sute-egunetan altuagoa izan behar du.</p>
+      <p><b>🔥 Suteak (EGIF).</b> 2010-2025eko Gipuzkoako baso suteen erregistro ofiziala (EGIF, MITECO) ere erakusten da: mapan, "Suteak 2010-2025 (EGIF)" geruza aktibatuta, sute guztiak ikusten dira beren kokalekuan (🔥). Iraganeko egun bat aukeratzean, txartelek estazio bakoitzaren eragin-eremuan egun horretan izandako sute-kopurua erakusten dute. Txostenetan, suteen kopurua eta kokalekua (udalerria, paraje, koordenatuak, azalera eta kausa) ageri dira, mapan eta taulan.</p>
     </details>
   </section>
 </main>
@@ -574,7 +578,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const txtSute = x => `${x.h} · ${x.m}${x.p ? ' ('+x.p+')' : ''} · ${fmtHa(x.ha)} ha · ${x.c}`;
 
   window.FWI_API = {
-    suteakEgun: f => suteakEgun(f), txtSute: x => txtSute(x),
+    suteakEgun: f => suteakEgun(f), txtSute: x => txtSute(x), suteakGuztiak: () => SUTEAK ? SUTEAK.suteak : null,
     diaHist: (n, f) => diaHist(n, f),
     fechaVista: () => fechaVista(),
     modo: () => MODO, valM: d => valM(d), fmtIfg: v => fmtIfg(v), claseM: d => claseM(d), fmtM: v => fmtM(v), eqM: v => eqM(v), ifgDe: d => ifgDe(d), leyenda: () => LEY(),
@@ -732,7 +736,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const linDatos = est.resumen ? '' : `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
       const insigniaResumen = '';
       const nSute = SUTEAK ? suteakEgun(u.fecha).filter(x => est.resumen || x.e === est.nombre).length : 0;
-      const chipSute = nSute ? `<span class="chip sute" title="EGIF erregistroa">🔥 ${nSute} sute${est.resumen ? ' Gipuzkoan' : ' eremuan'}</span>` : '';
+      const chipSute = nSute ? `<span class="chip sute" title="EGIF erregistroa: ${est.resumen ? 'Gipuzkoa osoko suteak' : 'estazio honen eragin-eremuko suteak'}">🔥 ${nSute} sute${est.resumen ? ' Gipuzkoan' : ' eragin-eremuan'}</span>` : '';
       const linIsi = (est.resumen || MODO === 'ifg') ? '' : `<span class="st-isi">ISI ${fmt(u.isi)} · DC ${fmt(u.dc)}</span>`;
       return `<button class="st${est.modelo?' eredua':''}${est.resumen?' resumen':''}" type="button" data-st="${i}" aria-pressed="${i===sel}">
         <span class="st-name">${nombreVis(est)}${infoI}</span>
@@ -840,27 +844,19 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
   const leyendaInf = (conSuteak) => '<div class="leg">'+LEY().map(([nm, r]) => `<span><i style="background:${colorDe(nm).c}"></i>${claseEu(nm)} (${r})</span>`).join('')+
     (conSuteak ? '<span><i style="background:#1b0f0a;border-radius:50%;box-shadow:inset 0 0 0 2px #ff7a1a"></i>Sutea (EGIF)</span>' : '')+'</div>';
   // lista de incendios para los informes
-  function tablaSuteak(lista, titulo, f, conIndice){
+  function tablaSuteak(lista, titulo, f){
     if (!SUTEAK) return '';
     if (!lista.length){
       const fuera = f && !egifTartean(f);
-      return `<h2>${titulo}</h2><p class="pie">${fuera ? 'EGIF erregistroak '+SUTEAK.desde+'-'+SUTEAK.hasta+' urteak hartzen ditu.' : 'Ez dago suterik erregistratuta.'}</p>`;
+      return `<h2>${titulo}: 0</h2><p class="pie">${fuera ? 'EGIF erregistroak '+SUTEAK.desde+'-'+SUTEAK.hasta+' urteak hartzen ditu.' : 'Ez dago suterik erregistratuta.'}</p>`;
     }
-    const estPor = n => DATA.estaciones.find(x => x.nombre === n);
-    const max = 40, l = lista.slice(0, max);
-    return `<h2>${titulo} (${lista.length})</h2><table><thead><tr><th>Eguna</th><th>Ordua</th><th>Udalerria (lekua)</th><th>Eremua</th><th>Azalera</th><th>Kausa</th>${conIndice ? '<th>'+(MODO === 'ifg' ? 'Basugix' : 'FWI')+'</th>' : ''}</tr></thead><tbody>`+
-      l.map(x => { const d = conIndice && x.e && estPor(x.e) ? diaEst(estPor(x.e), x.f) : null;
-        return `<tr><td class="izena">${fmtFecha(x.f)}</td><td>${x.h}</td><td class="izena">${x.m}${x.p ? ' ('+x.p+')' : ''}</td><td class="izena">${x.e || '—'}</td><td>${fmtHa(x.ha)} ha</td><td class="izena">${x.c}</td>`+
-          (conIndice ? `<td>${d && !d.prev ? fmtM(valM(d))+' '+pill(claseM(d)) : '—'}</td>` : '')+'</tr>'; }).join('')+
-      '</tbody></table>'+(lista.length > max ? `<p class="pie">Lehenengo ${max}ak soilik; guztira ${lista.length}.</p>` : '');
+    const ha = lista.reduce((a, x) => a + x.ha, 0);
+    const coord = v => v.toFixed(3).replace('.', ',');
+    return `<h2>${titulo}: ${lista.length} (${fmtHa(ha)} ha guztira)</h2><table class="t-sute"><thead><tr><th>Eguna</th><th>Ordua</th><th>Udalerria</th><th>Paraje</th><th>Koordenatuak (lat / lon)</th><th>Eragin-eremua</th><th>Azalera</th><th>Kausa</th></tr></thead><tbody>`+
+      lista.map(x => `<tr><td class="izena">${fmtLargo(x.f)}</td><td>${x.h}</td><td class="izena">${x.m}</td><td class="izena">${x.p || '—'}</td><td>${coord(x.lat)} / ${coord(x.lon)}</td><td class="izena">${x.e || '—'}</td><td>${fmtHa(x.ha)} ha</td><td class="izena">${x.c}</td></tr>`).join('')+
+      '</tbody></table><p class="pie">Iturria: EGIF (MITECO). Koordenatuak ETRS89/WGS84 sisteman, ~100 m-ko zehaztasunarekin.</p>';
   }
-  // índice medio en los días y zonas con incendio frente a la media del periodo
-  function indiceEnSuteak(lista, mediaAldia, soloEst){
-    const v = lista.map(x => { const e = DATA.estaciones.find(y => y.nombre === x.e); const d = e ? diaEst(e, x.f) : null; return d && !d.prev ? valM(d) : null; }).filter(x => x != null);
-    if (!v.length || mediaAldia == null) return '';
-    const m = v.reduce((a,b) => a+b, 0)/v.length, nom = MODO === 'ifg' ? 'Basugix' : 'FWIa';
-    return `<p class="pie"><b>🔥 Suteak izan ziren egunetan</b>, ${soloEst ? 'estazio honen' : 'eremu bakoitzeko estazioaren'} batez besteko ${nom}: <b>${fmtM(m)}</b> ${pill(clV(m))}, aldi osoko batez bestekoa ${fmtM(mediaAldia)} izan zenean (${v.length} sute).</p>`;
-  }
+
   function pieInf(extra){
     const ahora = new Date();
     return `<p class="pie">${extra} GIPUZKOA: estazioen FWIen batez besteko haztatua, eragin-eremuen azaleraren arabera. Pertzentila: hilabete bereko egun historikoekin alderatuta (2010etik). Eguzki-eguerdiko datuak (13:00 neguan, 14:00 udan). Datuak: Euskalmet / Open Data Euskadi; Mutriku eta iragarpenak: Open-Meteo.com (CC BY 4.0). Tresna orientagarria: ez ditu ordezkatzen abisu ofizialak.<br>Sortua: ${fmtFechaLuzea(ahora)}, ${fmtOrdua(ahora)} · ${location.host}${location.pathname}</p>`;
@@ -902,12 +898,12 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       <div class="inf-cab">
         <div><h1>${TIT()} — Gipuzkoa</h1>
           <p class="sub">${SUB()} · <b>${fmtFechaLuzea(fecha(f))}</b>${esPrev ? ' · <b>IRAGARPENA</b>' : ''}</p></div>
-        ${dg ? `<div class="inf-gip" style="background:${colorDe(claseM(dg)).c};color:${colorDe(claseM(dg)).fg}">GIPUZKOA<div class="v">${fmtM(valM(dg))}</div>${claseEu(claseM(dg))}${MODO === 'ifg' ? '<br>'+fmtIfg(ifgDe(dg))+' egun ertainarekiko' : (dg.pct != null ? '<br>'+dg.pct+'. pertzentila' : '')}</div>` : ''}
+        ${dg ? `<div class="inf-gip" style="background:${colorDe(claseM(dg)).c};color:${colorDe(claseM(dg)).fg}">GIPUZKOA<div class="v">${fmtM(valM(dg))}</div>${claseEu(claseM(dg))}${MODO === 'ifg' ? '<br>'+fmtIfg(ifgDe(dg))+' egun ertainarekiko' : (dg.pct != null ? '<br>'+dg.pct+'. pertzentila' : '')}${SUTEAK && suteakEgun(f).length ? '<br>🔥 '+suteakEgun(f).length+' sute' : ''}</div>` : ''}
       </div>
       <div class="inf-mapa">${svgMapa(geo, puntosDe(geo, n => porNombre[n] ? valM(porNombre[n]) : null), null, SUTEAK ? suteakEgun(f) : [])}</div>
       ${leyendaInf(SUTEAK && suteakEgun(f).length)}
       <table><thead><tr><th>Estazioa</th><th>${MODO === 'ifg' ? 'Basugix' : 'FWI'}</th><th>Maila</th><th>${MODO === 'ifg' ? '× egun ert.' : 'Pertz.'}</th><th>T °C</th><th>HR %</th><th>Haizea km/h</th><th>Euria 24 h mm</th><th>${MODO === 'ifg' ? '' : 'ISI'}</th><th>${MODO === 'ifg' ? '' : 'DC'}</th><th>Oharrak</th></tr></thead><tbody>${filas}</tbody></table>
-      ${tablaSuteak(suteakEgun(f), 'Egun horretako suteak (EGIF)', f, false)}
+      ${tablaSuteak(suteakEgun(f), '🔥 Egun horretako suteak (EGIF)', f)}
       ${pieInf('Mapa: gainazal jarraitua (estazioen balioen interpolazioa, alderantzizko distantziaren arabera).')}
     </div>`;
   }
@@ -977,7 +973,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       ${leyendaInf(sutAld.length)}
       ${graf ? `<h2>GIPUZKOA: ${graf.etiqueta}</h2><div class="graf">${graf.svg}</div>` : ''}
       <table><thead><tr><th>Estazioa</th><th>Egunak</th><th>Batez b.</th><th>Maila</th><th>Maximoa</th>${cabClases}<th>≥ Handia</th>${SUTEAK ? '<th>🔥 Suteak</th>' : ''}<th>Oharrak</th></tr></thead><tbody>${filas}</tbody></table>
-      ${SUTEAK ? indiceEnSuteak(sutAld, sg ? sg.media : null, false) : ''}
+      ${tablaSuteak(sutAld, '🔥 Aldiko suteak (EGIF)', desde)}
       ${pieInf('Mapa: aldiko batez bestekoaren gainazal jarraitua (estazioen balioen interpolazioa, alderantzizko distantziaren arabera). Mailen zutabeak: maila bakoitzeko egun kopurua. Neurtutako egunak soilik (iragarpenik gabe).')}
     </div>`;
   }
@@ -1024,12 +1020,12 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
           <p class="sub">${SUB()} · <b>${fmtFechaLuzea(fecha(f))}</b>${f > fechaActual() ? ' · <b>IRAGARPENA</b>' : ''}${d && d.fecha && d.fecha !== f ? ' · azken datua: '+fmtFecha(d.fecha) : ''}</p></div>
         <div class="inf-gip" style="background:${col.c};color:${col.fg}">${nombreVis(e).toUpperCase()}<div class="v">${d ? fmtM(valM(d)) : '—'}</div>${d ? claseEu(claseM(d)) : 'daturik ez'}${d ? (MODO === 'ifg' ? '<br>'+fmtIfg(ifgDe(d))+' egun ertainarekiko' : (d.pct != null ? '<br>'+d.pct+'. pertzentila' : '')) : ''}</div>
       </div>
-      <div class="inf-mapa peq">${svgMapa(geo, puntosDe(geo, n => porNombre[n] ? valM(porNombre[n]) : null), e.nombre, SUTEAK ? suteakEgun(f) : [])}</div>
-      ${leyendaInf(SUTEAK && suteakEgun(f).length)}
+      <div class="inf-mapa peq">${svgMapa(geo, puntosDe(geo, n => porNombre[n] ? valM(porNombre[n]) : null), e.nombre, SUTEAK ? suteakEgun(f).filter(x => x.e === e.nombre) : [])}</div>
+      ${leyendaInf(SUTEAK && suteakEgun(f).filter(x => x.e === e.nombre).length)}
       <table style="max-width:115mm">${tabla || '<tr><td>Egun horretan ez dago daturik.</td></tr>'}</table>
       ${klima ? `<p class="pie">${klima}</p>` : ''}
       ${graf ? `<h2>Azken 14 egunak</h2><div class="graf">${graf.svg}</div>` : ''}
-      ${tablaSuteak(suteakEgun(f).filter(x => x.e === e.nombre), 'Egun horretako suteak eremuan (EGIF)', f, false)}
+      ${tablaSuteak(suteakEgun(f).filter(x => x.e === e.nombre), '🔥 Egun horretako suteak eragin-eremuan (EGIF)', f)}
       ${notas.length ? `<p class="pie"><b>Oharrak:</b> ${notas.join(' · ')}</p>` : ''}
       ${pieInf('Mapa: gainazal jarraitua (estazioen balioen interpolazioa); marra lodiak estazio honen eragin-eremua mugatzen du.')}
     </div>`;
@@ -1064,7 +1060,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       <div class="inf-cab">
         <div><h1>${TIT()} — ${nombreVis(e)}</h1>
           <p class="sub">Aldiko txostena · <b>${fmtLargo(desde)} – ${fmtLargo(hasta)}</b> (${fechas.length} egun${x ? ', '+x.n+' datuekin' : ''})</p></div>
-        <div class="inf-gip" style="background:${col.c};color:${col.fg}">${nombreVis(e).toUpperCase()}<div class="v">${x ? fmtM(x.media) : '—'}</div>${x ? 'batez bestekoa<br>max. '+fmtM(valM(x.max))+' ('+fmtFecha(x.max.fecha)+')' : 'daturik ez'}${SUTEAK ? '<br>🔥 '+sutEst.length+' sute eremuan' : ''}</div>
+        <div class="inf-gip" style="background:${col.c};color:${col.fg}">${nombreVis(e).toUpperCase()}<div class="v">${x ? fmtM(x.media) : '—'}</div>${x ? 'batez bestekoa<br>max. '+fmtM(valM(x.max))+' ('+fmtFecha(x.max.fecha)+')' : 'daturik ez'}${SUTEAK ? '<br>🔥 '+sutEst.length+' sute eragin-eremuan' : ''}</div>
       </div>
       <h2>Aldiko ${MODO === 'ifg' ? 'Basugix' : 'FWI'} batez bestekoa</h2>
       <div class="inf-mapa peq">${svgMapa(geo, puntosDe(geo, n => st[n] ? st[n].media : null), e.nombre, sutEst)}</div>
@@ -1072,7 +1068,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       ${graf ? `<h2>${nombreVis(e)}: ${graf.etiqueta}</h2><div class="graf">${graf.svg}</div>` : ''}
       ${x ? '<h2>Egunak mailaka</h2>'+porClase : '<p>Aldi horretan ez dago daturik.</p>'}
       ${porMes}${top}
-      ${SUTEAK ? indiceEnSuteak(sutEst, x ? x.media : null, true) + tablaSuteak(sutEst, 'Eremuko suteak aldian (EGIF)', null, true) : ''}
+      ${tablaSuteak(sutEst, '🔥 Aldiko suteak eragin-eremuan (EGIF)', desde)}
       ${notas.length ? `<p class="pie"><b>Oharrak:</b> ${notas.join(' · ')}</p>` : ''}
       ${pieInf('Mapa: aldiko batez bestekoaren gainazal jarraitua; marra lodiak estazio honen eragin-eremua mugatzen du. Neurtutako egunak soilik (iragarpenik gabe).')}
     </div>`;
@@ -1493,28 +1489,35 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     }
 
     // ---- legenda
+    let suteakVisibles = false;   // "Suteak 2010-2025" geruza aktibatuta dagoen
     const leyenda = L.control({position: 'bottomright'});
     let divLeyenda = null;
     function textoLeyenda(){
       const items = A ? A.leyenda() : [['Muy bajo','< 5,2'],['Bajo','5,2–11,2'],['Moderado','11,2–21,3'],['Alto','21,3–38'],['Muy alto','38–50'],['Extremo','> 50']];
       return '<b>'+(esIfg() ? 'Basugix' : 'FWI')+'</b><br>' + items
-        .map(([n,r]) => '<i style="background:'+colorDe(n).c+'"></i>'+{'Muy bajo':'Oso baxua','Bajo':'Baxua','Moderado':'Ertaina','Alto':'Handia','Muy alto':'Oso handia','Extremo':'Muturrekoa'}[n]+' ('+r+')').join('<br>') + '<br><i style="background:#9aa5a0"></i>Daturik ez';
+        .map(([n,r]) => '<i style="background:'+colorDe(n).c+'"></i>'+{'Muy bajo':'Oso baxua','Bajo':'Baxua','Moderado':'Ertaina','Alto':'Handia','Muy alto':'Oso handia','Extremo':'Muturrekoa'}[n]+' ('+r+')').join('<br>') + '<br><i style="background:#9aa5a0"></i>Daturik ez'+
+        (suteakVisibles ? '<br>🔥 Sutea (EGIF, 2010-2025)' : '');
     }
     leyenda.onAdd = () => { divLeyenda = L.DomUtil.create('div', 'leyenda'); divLeyenda.innerHTML = textoLeyenda(); return divLeyenda; };
     leyenda.addTo(mapa);
 
-    // suteak (EGIF) egun horretan
-    const capaSuteak = L.layerGroup().addTo(mapa);
+    // Suteak (EGIF): 2010-2025eko sute guztiak, bakoitza bere koordenatuetan 🔥 ikurrarekin.
+    // Geruza hasieran desaktibatuta dago; geruzen menuan aktibatzen da.
+    const capaSuteak = L.layerGroup();
     const iconoSute = L.divIcon({className: 'sute-wrap', html: '<div class="sute-ico" aria-hidden="true">🔥</div>', iconSize: [0,0]});
+    let sutePintados = false;
     function pintarSuteak(){
-      capaSuteak.clearLayers();
-      if (!A || !A.suteakEgun) return 0;
-      const l = A.suteakEgun(estado.fecha);
-      l.forEach(x => L.marker([x.lat, x.lon], {icon: iconoSute, keyboard: false})
-        .bindPopup('<b>🔥 Sutea (EGIF)</b><br>'+A.txtSute(x)+(x.e ? '<br>Eremua: '+x.e : '')).addTo(capaSuteak));
-      return l.length;
+      if (sutePintados || !A || !A.suteakGuztiak || !A.suteakGuztiak()) return;
+      sutePintados = true;
+      A.suteakGuztiak().forEach(x => L.marker([x.lat, x.lon], {icon: iconoSute, keyboard: false, title: fmtFecha(x.f)+' · '+x.m})
+        .bindPopup('<b>🔥 Sutea (EGIF)</b><br>'+fmtFecha(x.f)+' · '+A.txtSute(x)+
+                   '<br>Koordenatuak: '+x.lat.toFixed(3).replace('.',',')+' / '+x.lon.toFixed(3).replace('.',',')+
+                   (x.e ? '<br>Eragin-eremua: '+x.e : ''))
+        .addTo(capaSuteak));
     }
-    const overlays = Object.assign({'Estazioak (eguneko FWIa)': capaPins, 'Suteak (EGIF, 2010-2025)': capaSuteak, 'Udalerriak (izena eta eragina)': capaMuni}, wms);
+    mapa.on('overlayadd', ev => { if (ev.layer === capaSuteak){ suteakVisibles = true; pintarSuteak(); if (divLeyenda) divLeyenda.innerHTML = textoLeyenda(); } });
+    mapa.on('overlayremove', ev => { if (ev.layer === capaSuteak){ suteakVisibles = false; if (divLeyenda) divLeyenda.innerHTML = textoLeyenda(); } });
+    const overlays = Object.assign({'Estazioak (eguneko FWIa)': capaPins, 'Suteak 2010-2025 (EGIF) 🔥': capaSuteak, 'Udalerriak (izena eta eragina)': capaMuni}, wms);
     L.control.layers({'Mapa (OpenStreetMap)': osm, 'Erliebea (OpenTopoMap)': topo}, overlays, {collapsed: true}).addTo(mapa);
 
     // ---- birmarrazketa
@@ -1531,13 +1534,13 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         if (!mapa.hasLayer(capaZonas)) capaZonas.addTo(mapa);
       }
       capaContorno.bringToFront();
-      const nSut = pintarSuteak();
+
       const sin = est.filter(e => !valorDe(e.nombre)).map(e => e.nombre);
       const hayPrev = est.some(e => (valorDe(e.nombre) || {}).prev);
       $('#mapaNota').textContent = fmtFecha(estado.fecha)+(hayPrev ? ' (IRAGARPENA: etiketen ertz etenak neurtutako datuetatik bereizten du). ' : '. ')+
         (estado.modo === 'zonas' ? 'Eremu bakoitzak gertuen duen estazioaren FWIa hartzen du (Thiessen poligonoak).' : 'Estazioen balioen interpolazioa, alderantzizko distantziaren arabera.')+
         (sin.length ? ' Egun horretan daturik gabe: '+sin.join(', ')+'.' : '')+
-        (nSut ? ' 🔥 EGIFen erregistratutako suteak egun horretan: '+nSut+'.' : '')+
+        (A && A.suteakGuztiak && A.suteakGuztiak() ? ' 🔥 2010-2025eko suteak (EGIF) ikusteko, aktibatu geruza geruzen menuan (goian eskuinean).' : '')+
         ' Orientagarria: estazio gutxi dira erliebearen, orientazioaren edo erregaiaren tokiko alde guztiak jasotzeko. 💨 hego haizearen abisua adierazten du.';
     }
 
