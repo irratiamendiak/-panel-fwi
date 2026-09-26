@@ -44,6 +44,22 @@ jobs:
           python actualizar_fwi.py --clave "$RUNNER_TEMP/clave.pem"
           rm -f "$RUNNER_TEMP/clave.pem"
 
+      - name: Notificaciones (correo y Telegram)
+        # informe diario por correo y avisos por Telegram; solo actúa tras el cierre del dato y una vez al día.
+        # Si falla, no impide guardar los datos.
+        continue-on-error: true
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          TELEGRAM_CHAT_TEC: ${{ secrets.TELEGRAM_CHAT_TEC }}
+        run: python notificar.py
+
       - name: Guardar los cambios
         run: |
           git config user.name "fwi-bot"
@@ -59,3 +75,11 @@ jobs:
             git pull --rebase || true
           done
           exit 1
+
+      - name: Aviso técnico si algo ha fallado
+        if: failure()
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT: ${{ secrets.TELEGRAM_CHAT }}
+          TELEGRAM_CHAT_TEC: ${{ secrets.TELEGRAM_CHAT_TEC }}
+        run: python notificar.py --fallo "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
