@@ -15,7 +15,8 @@ from collections import defaultdict
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import shp_tools as st
 
-# Estaciones: código, latitud, longitud, altitud (m)
+# Estaciones: código, latitud, longitud, altitud (m).
+# Coordenadas y altitudes oficiales de las fichas de Euskalmet (euskadi.eus), revisadas el 26/09/2026.
 ESTACIONES = {
     "Arrasate":  ("C023", 43.0695849, -2.493080, 318),
     "Miramon":   ("C017", 43.2868000, -1.971210, 113),
@@ -23,11 +24,11 @@ ESTACIONES = {
     "Berastegi": ("C026", 43.1248000, -1.981700, 379),
     "Zegama":    ("C028", 42.9588000, -2.298520, 520),
     "Mutriku":   (None, 43.3072000, -2.385000, 20),    # sin estación física: estimación de Open-Meteo
-    "Zarautz":   ("C064", 43.2930000, -2.145400, 10),   # + C086 Inurritza (lluvia)
-    "Ordizia":   ("C043", 43.0547000, -2.178300, 153),
-    "Zizurkil":  ("C029", 43.1992000, -2.074200, 115),
-    "Pasaia":    ("B096", 43.3380000, -1.925000, 0),    # plataforma, no estación de tierra
-    "Altzola":   ("C078", 43.2365000, -2.400200, 30),   # + viento de Open-Meteo
+    "Zarautz":   ("C064", 43.2930000, -2.145420, 80),   # + C086 Inurritza (lluvia)
+    "Ordizia":   ("C043", 43.0484000, -2.177550, 243),
+    "Zizurkil":  ("C029", 43.1901000, -2.061810, 149),
+    "Pasaia":    ("B096", 43.3370283, -1.927520, 0),    # plataforma, no estación de tierra
+    "Altzola":   ("C078", 43.2419000, -2.397840, 17),   # + viento de Open-Meteo
 }
 MODELO_ESTACIONES = {"Mutriku"}
 TOL = 40.0      # tolerancia de simplificación (m)

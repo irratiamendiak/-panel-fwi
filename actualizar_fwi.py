@@ -77,16 +77,17 @@ REGISTRO_PREVISIONES = Path("datos/previsiones.csv")
 HISTORICO_WEB = Path("docs/data/historico.json")   # historial completo para consultar cualquier día en la web
 HUECO_MAX = 14       # días: con un hueco mayor entre dos lecturas se reinician los códigos
 CALENTAMIENTO = 45   # días tras un reinicio (o el inicio del histórico) con valores aún poco fiables
+# Coordenadas y altitudes oficiales de las fichas de Euskalmet (euskadi.eus), revisadas el 26/09/2026.
 COORD = {   # nombre: (latitud, longitud, altitud)
     "Arrasate": (43.0695849, -2.493080, 318), "Miramon": (43.2868, -1.97121, 113),
     "Bidania": (43.146, -2.15502, 592), "Berastegi": (43.1248, -1.9817, 379),
     "Zegama": (42.9588, -2.29852, 520),
     "Mutriku": (43.3072, -2.3850, 20),   # sin estación física: estimación de Open-Meteo (ver MODELO_ESTACIONES)
-    "Zarautz": (43.2930, -2.1454, 10),   # C064 (temperatura/humedad/viento) + C086 Inurritza (lluvia)
-    "Ordizia": (43.0547, -2.1783, 153),
-    "Zizurkil": (43.1992, -2.0742, 115),
-    "Pasaia": (43.3380, -1.9250, 0),     # plataforma en la bocana de la bahía, no en tierra
-    "Altzola": (43.2365, -2.4002, 30),   # C078 (temperatura/humedad/lluvia) + viento de Open-Meteo
+    "Zarautz": (43.293, -2.14542, 80),   # C064 (temperatura/humedad/viento) + C086 Inurritza (lluvia)
+    "Ordizia": (43.0484, -2.17755, 243),
+    "Zizurkil": (43.1901, -2.06181, 149),
+    "Pasaia": (43.3370283, -1.92752, 0),     # plataforma en la bocana de la bahía, no en tierra
+    "Altzola": (43.2419, -2.39784, 17),   # C078 (temperatura/humedad/lluvia) + viento de Open-Meteo
 }
 # Puntos sin sensor real detrás: el dato "de hoy" también es una estimación de modelo (Open-Meteo),
 # sin nada local con que corregirla ni contrastarla, a diferencia de las estaciones de Euskalmet.

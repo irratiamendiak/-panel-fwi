@@ -123,17 +123,19 @@ _SENSOR_LLUVIA = {}  # código de la vecina -> sensor de lluvia ya detectado
 # Coordenadas (latitud, longitud, altitud en m) para pedir a Open-Meteo los datos que falten.
 # Son las mismas que COORD de actualizar_fwi.py (si cambias unas, cambia las otras). Con altitud
 # None, Open-Meteo usaría la del terreno en ese punto.
+# Coordenadas y altitudes oficiales de las fichas de Euskalmet (euskadi.eus), revisadas el 26/09/2026.
 COORDENADAS = {
     "C023": (43.0695849, -2.493080, 318),   # Arrasate
     "C017": (43.2868, -1.97121, 113),       # Miramon
     "C058": (43.146, -2.15502, 592),        # Bidania
     "C026": (43.1248, -1.9817, 379),        # Berastegi
     "C028": (42.9588, -2.29852, 520),       # Zegama
-    "C043": (43.0547, -2.1783, 153),        # Ordizia
-    "C029": (43.1992, -2.0742, 115),        # Zizurkil
-    "B096": (43.3380, -1.9250, 0),          # Pasaia (plataforma en la bocana)
-    "C064": (43.2930, -2.1454, 10),         # Zarautz
-    "C078": (43.2365, -2.4002, 30),         # Altzola
+    "C043": (43.0484, -2.17755, 243),       # Ordizia
+    "C029": (43.1901, -2.06181, 149),       # Zizurkil
+    "B096": (43.3370283, -1.92752, 0),      # Pasaia (plataforma en la bocana)
+    "C064": (43.293, -2.14542, 80),         # Zarautz
+    "C078": (43.2419, -2.39784, 17),        # Altzola
+    "C086": (43.2779811, -2.1693568, 5),    # Inurritza (lluvia de Zarautz)
 }
 DIAS_ESPERA = 3   # los días más recientes no se rellenan: puede que Euskalmet aún no haya publicado todo
 VIENTO_FACTOR = 3.6   # m/s -> km/h de la API de Euskalmet (1.0 con --viento-kmh)
