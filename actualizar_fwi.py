@@ -294,6 +294,7 @@ def cascada(filas, inicial, estado=None):
             "ifg": round(ifg_calc(fwi, f["fecha"], sur, W), 2),
             "clase_ifg": clase_ifg(ifg_calc(fwi, f["fecha"], sur, W)),
             "calentando": (d - inicio).days < CALENTAMIENTO,
+            "origen": f.get("origen") or "",
         })
     if estado is not None and prev is not None:      # último estado real, sin redondear, para la previsión
         estado.update(fecha=prev, F=F, M=M, D=D, calentando=(prev - inicio).days < CALENTAMIENTO)
@@ -745,14 +746,16 @@ def escribir_historico(cascadas, ref, orden_json):
             continue
         ini = date.fromisoformat(dias[0]["fecha"])
         n = (date.fromisoformat(dias[-1]["fecha"]) - ini).days + 1
-        cols = {k: [None] * n for k in ("fwi", "pct", "T", "H", "W", "R", "dir", "isi", "dc", "cal", "cob", "ifg")}
+        cols = {k: [None] * n for k in ("fwi", "pct", "T", "H", "W", "R", "dir", "ffmc", "dmc", "dc", "isi", "bui",
+                                         "cal", "cob", "ifg", "org")}
         for d in dias:
             i = (date.fromisoformat(d["fecha"]) - ini).days
             v = ref.get((nombre, int(d["fecha"][5:7])))
             cols["fwi"][i] = d["fwi"]
             cols["pct"][i] = rango_percentil(v, d["fwi"]) if (v and len(v) >= 30 and not d.get("calentando")) else None
             cols["ifg"][i] = d.get("ifg")
-            for k in ("T", "H", "W", "R", "isi", "dc"):
+            cols["org"][i] = d.get("origen") or None   # datos rellenados y de dónde (vacío = todo medido)
+            for k in ("T", "H", "W", "R", "ffmc", "dmc", "dc", "isi", "bui"):
                 x = d.get(k)
                 cols[k][i] = round(x, 1) if isinstance(x, (int, float)) else None
             cols["dir"][i] = round(d["dir"]) if isinstance(d.get("dir"), (int, float)) else None
