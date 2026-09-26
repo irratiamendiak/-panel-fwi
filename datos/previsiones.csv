@@ -83,8 +83,8 @@ emitida,estacion,fecha,adelanto,fwi,min,max,clase,calculado,ifg,clase_ifg
 2026-09-25,Zizurkil,2026-09-26,1,16.4,9.5,24.2,Moderado,0,2.06,Alto
 2026-09-25,Zizurkil,2026-09-27,2,17.6,8.7,25.1,Moderado,0,2.23,Alto
 2026-09-25,Zizurkil,2026-09-28,3,30.2,19.8,44.8,Alto,0,6.43,Muy alto
-2026-09-26,Altzola,2026-09-26,0,14.7,10.0,21.3,Moderado,1,1.84,Moderado
-2026-09-26,Altzola,2026-09-27,1,18.3,11.4,26.2,Moderado,0,2.32,Alto
+2026-09-26,Altzola,2026-09-26,0,15.0,10.3,21.6,Moderado,1,1.88,Moderado
+2026-09-26,Altzola,2026-09-27,1,18.2,11.3,26.1,Moderado,0,2.31,Alto
 2026-09-26,Altzola,2026-09-28,2,26.0,16.6,39.5,Alto,0,5.45,Muy alto
 2026-09-26,Altzola,2026-09-29,3,8.5,2.1,14.3,Bajo,0,1.69,Moderado
 2026-09-26,Arrasate,2026-09-26,0,21.8,13.6,36.7,Alto,1,2.8,Alto
@@ -99,7 +99,7 @@ emitida,estacion,fecha,adelanto,fwi,min,max,clase,calculado,ifg,clase_ifg
 2026-09-26,Bidania,2026-09-27,1,13.5,6.6,21.4,Moderado,0,1.69,Moderado
 2026-09-26,Bidania,2026-09-28,2,19.2,10.2,26.7,Moderado,0,3.94,Alto
 2026-09-26,Bidania,2026-09-29,3,21.9,11.4,36.4,Alto,0,4.54,Muy alto
-2026-09-26,Gipuzkoa,2026-09-26,0,17.0,11.3,25.8,Moderado,1,2.2,Alto
+2026-09-26,Gipuzkoa,2026-09-26,0,17.0,11.3,25.9,Moderado,1,2.2,Alto
 2026-09-26,Gipuzkoa,2026-09-27,1,19.3,11.4,28.8,Moderado,0,2.6,Alto
 2026-09-26,Gipuzkoa,2026-09-28,2,26.9,17.6,39.9,Alto,0,5.7,Muy alto
 2026-09-26,Gipuzkoa,2026-09-29,3,20.8,11.6,32.0,Moderado,0,4.3,Muy alto
