@@ -278,6 +278,11 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
     </details>
 
     <details class="met">
+      <summary>Euririk gabeko egunak</summary>
+      <p>Txartel bakoitzean, haizearen azpian, estazioak <b>jarraian euririk gabe</b> daramatzan egunak agertzen dira, ikusten ari den egunera arte (hura barne). Egun bat "euriduna" da eguzki-eguerdira arteko 24 orduetan <b>1 mm edo gehiago</b> egin badu; hortik behera, euriak ia ez du erregaia hezetzen. Aurreko egunetan datu-hutsunea badago, "≥" ikurra agertzen da: gutxienez egun horiek daramatza euririk gabe.</p>
+    </details>
+
+    <details class="met">
       <summary>Datuak falta direnean</summary>
       <ul>
         <li><b>Euria.</b> 24 orduetako 144 irakurketetatik (10 minuturo bat) 6 edo gutxiago falta badira, estazioaren datua erabiltzen da. Gehiago falta badira, edo egun osoa, euria <b>gertuen dagoen estaziotik</b> hartzen da (datu osoak baditu; bestela, hurrengotik). Guztiek huts eginez gero (akats orokorra), Open-Meteo eredutik.</li>
@@ -670,6 +675,24 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
 
   // Si ya pasó la hora del dato y la medición de hoy aún no está completa (se reintenta en la
   // siguiente ejecución), la tarjeta muestra el valor de hoy calculado con lo medido hasta ahora.
+  // ---- Euririk gabeko egunak: egun horretara arte (barne), jarraian, 24 orduko euria 1 mm-tik behera izan duten egunak
+  const EURI_MIN = 1.0;   // mm (euri nabarmena)
+  function diasSinLluvia(est, f, u){
+    if (est.resumen) return null;
+    const hoy0 = u && u.R != null ? u : diaEst(est, f);
+    if (!hoy0 || hoy0.R == null || (hoy0.prev && !hoy0.calculado)) return null;
+    if (hoy0.R >= EURI_MIN) return {n: 0};
+    let n = 1, g = f;
+    for (let k = 0; k < 400; k++){
+      g = masDias(g, -1);
+      const d = diaEst(est, g);
+      if (!d || d.prev || d.R == null) return {n, hutsunea: true};   // datu-hutsunea: gutxienez n egun
+      if (d.R >= EURI_MIN) return {n};
+      n++;
+    }
+    return {n, hutsunea: true};
+  }
+
   function hoyCalculado(est){
     const u = ultimo(est), hoy = hoyISO();
     if (!diaFijado() || (u && u.fecha >= hoy)) return null;
@@ -732,6 +755,9 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
       const notaCobertura = (est.resumen && u.cobertura != null && u.cobertura < 100)
                            ? `<span class="st-date">Gipuzkoako % ${u.cobertura}ekin kalkulatua</span>` : '';
       const linViento = (!est.resumen && u.W != null) ? `<span class="st-date">Haizea: ${fmt(u.W)} km/h${u.dir!=null?' ('+sector8(u.dir)+')':''}</span>` : '';
+      const sl = diasSinLluvia(est, u.fecha, u);
+      const linLluvia = !sl ? '' : `<span class="st-date" title="Jarraian, 24 orduko euria 1 mm-tik behera izan duten egunak">${
+        sl.n === 0 ? '🌧️ Euria azken 24 h-etan' : '☀️ Euririk gabe: <b>'+(sl.hutsunea ? '≥ ' : '')+sl.n+' egun</b>'}</span>`;
       // En GIPUZKOA solo el índice: promediar temperatura, humedad o lluvia entre estaciones no aporta.
       const linDatos = est.resumen ? '' : `<span class="st-date">T ${fmt(u.T)} °C · HR % ${fmt(u.H,0)} · euria 24 h ${fmt(u.R)} mm</span>`;
       const insigniaResumen = '';
@@ -748,6 +774,7 @@ button.mini{min-width:44px;padding:0 10px;margin-top:0}
         ${notaCobertura}
         ${linDatos}
         ${linViento}
+        ${linLluvia}
         ${est.resumen ? '' : chipViento(u)}${chipSute}
         ${notaEst}
         ${linPrev}
